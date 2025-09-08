@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import OrderDetailsModal from '../../Components/OrderDetails/OrderDetailsModal'; // Import the modal component
+import SaveCustomer from '../../Components/SaveOptions/SaveCustomer'; // Import SaveCustomer component
 
 interface Product {
   id: string;
@@ -32,6 +34,22 @@ interface OrderData {
   isCompleted?: boolean;
 }
 
+interface Customer {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+  customerCode: string;
+  note: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 interface NavProps {
   totalAmount?: number;
   itemCount?: number;
@@ -42,7 +60,10 @@ interface NavProps {
   onAddUser?: () => void;
   onOrdersPress?: () => void;
   onOrderComplete?: (orderData: OrderData) => void;
-  onSaveOrder?: (orderData: Partial<OrderData>) => void; // New prop for handling saved orders
+  onSaveOrder?: (orderData: Partial<OrderData>) => void;
+  onSaveCustomer?: (customer: Customer) => void; // New prop for handling customer save
+  existingCustomers?: Customer[]; // Existing customers for search
+  onInventoryPress?: () => void; // New prop for inventory management
 }
 
 export default function Nav({ 
@@ -55,9 +76,13 @@ export default function Nav({
   onAddUser = () => {}, 
   onOrdersPress = () => {},
   onOrderComplete = () => {},
-  onSaveOrder = () => {}
+  onSaveOrder = () => {},
+  onSaveCustomer = () => {},
+  existingCustomers = [],
+  onInventoryPress = () => {}
 }: NavProps) {
   const [showOrderModal, setShowOrderModal] = useState(false);
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
   
   // Calculate total number of orders (unique products with quantity > 0)
   const orderCount = selectedProducts.length;
@@ -101,6 +126,25 @@ export default function Nav({
     console.log('Order saved:', orderData);
   };
 
+  const handleAddUserPress = () => {
+    // Show the SaveCustomer modal instead of calling onAddUser
+    setShowCustomerModal(true);
+  };
+
+  const handleSaveCustomer = (customer: Customer) => {
+    // Call the parent's onSaveCustomer function
+    onSaveCustomer(customer);
+    
+    // Close the modal
+    setShowCustomerModal(false);
+    
+    console.log('Customer saved:', customer);
+  };
+
+  const handleCloseCustomerModal = () => {
+    setShowCustomerModal(false);
+  };
+
   return (
     <>
       <View style={styles.container}>
@@ -111,7 +155,29 @@ export default function Nav({
 
         {/* Right side - Actions */}
         <View style={styles.rightSection}>
+          {/* Total Amount Display - Show when there are items */}
+          {/* {displayTotal > 0 && (
+            <View style={styles.totalAmountContainer}>
+              <Text style={styles.totalAmountText}>
+                ${displayTotal.toFixed(2)}
+              </Text>
+            </View>
+          )} */}
 
+          {/* Inventory Management Button */}
+          <TouchableOpacity 
+            style={styles.inventoryButton}
+            onPress={()=>router.push('/Screens/Admin/InventoryManagement')}
+            activeOpacity={0.7}
+          >
+            <Ionicons 
+              name="storefront" 
+              size={20} 
+              color="#2563eb" 
+            />
+          </TouchableOpacity>
+
+          {/* Order Count Display */}
           <TouchableOpacity 
             style={[
               styles.orderContainer,
@@ -137,7 +203,7 @@ export default function Nav({
           {/* Add User Button */}
           <TouchableOpacity 
             style={styles.addUserButton}
-            onPress={onAddUser}
+            onPress={handleAddUserPress}
             activeOpacity={0.7}
           >
             <Ionicons 
@@ -157,6 +223,20 @@ export default function Nav({
         onOrderComplete={handleOrderComplete}
         onSaveOrder={handleSaveOrder}
       />
+
+      {/* Save Customer Modal */}
+      <Modal
+        visible={showCustomerModal}
+        animationType="slide"
+        presentationStyle="formSheet"
+        onRequestClose={handleCloseCustomerModal}
+      >
+        <SaveCustomer
+          onSave={handleSaveCustomer}
+          onCancel={handleCloseCustomerModal}
+          existingCustomers={existingCustomers}
+        />
+      </Modal>
     </>
   );
 }
@@ -184,103 +264,72 @@ const styles = StyleSheet.create({
   appTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1f2937',
+    color: '#1e293b',
+    letterSpacing: -0.5,
   },
   rightSection: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  totalAmountContainer: {
-    marginRight: 15,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-    backgroundColor: '#2563eb',
-  },
-  totalAmountText: {
-    fontSize: 16,
-    color: '#ffffff',
-    fontWeight: '600',
+    gap: 12,
   },
   orderContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#eff6ff',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
     position: 'relative',
-    marginRight: 15,
-    padding: 10,
-    borderRadius: 50,
-    backgroundColor: '#f1f5f9',
   },
   orderContainerActive: {
     backgroundColor: '#2563eb',
   },
   orderBadge: {
-    position: 'absolute',
-    top: -5,
-    right: -5,
     backgroundColor: '#dc2626',
     borderRadius: 10,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    minWidth: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 6,
+    paddingHorizontal: 4,
   },
   orderCount: {
     color: '#ffffff',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
+    textAlign: 'center',
+  },
+  totalAmountContainer: {
+    backgroundColor: '#22c55e',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  totalAmountText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  inventoryButton: {
+    backgroundColor: '#eff6ff',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#2563eb',
   },
   addUserButton: {
-    padding: 10,
-    borderRadius: 50,
     backgroundColor: '#2563eb',
-    marginLeft: 10,
-  },
-  addUserIcon: {
-    color: '#ffffff',
-  },
-  orderIcon: {
-    color: '#2563eb',
-  },
-  orderCountText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  orderIconActive: {
-    color: '#ffffff',
-  },
-  orderIconInactive: {
-    color: '#2563eb',
-  },
-  orderCountContainer: {
-    position: 'absolute',
-    top: -5,
-    right: -5,
-    backgroundColor: '#dc2626',
-    borderRadius: 10,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-
-  orderCountText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  orderIconContainer: {
-    position: 'relative',
-    marginRight: 15,
-    padding: 10,
-    borderRadius: 50,
-    backgroundColor: '#f1f5f9',
-  },
-  orderIconContainerActive: {
-    backgroundColor: '#2563eb',
-  },
-  orderIconBadge: {
-    position: 'absolute',
-    top: -5,
-    right: -5,
-    backgroundColor: '#dc2626',
-    borderRadius: 10,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
   },
 });

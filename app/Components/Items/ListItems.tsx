@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   FlatList,
   Image,
@@ -11,9 +11,9 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import { getMenuItems } from '../../Api/Services/Products';
 import Nav from '../NavBar/Nav';
 import Save from '../SaveOptions/Save';
-
 interface Product {
   id: string;
   name: string;
@@ -286,6 +286,25 @@ export default function ListItems({ products = SAMPLE_PRODUCTS }: ListItemsProps
   const [showDropdown, setShowDropdown] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   // Changed to track quantities instead of just selected products
+
+ async function fetchProducts() {
+      try {
+        let response = await getMenuItems();
+        console.log('Menu items fetched:', response);
+        // setProducts(response); // Uncomment if you want to replace sample data with fetched data
+      } catch (error) {
+        console.log('Failed to fetch menu items',error);
+        console.error('Error fetching menu items:', error);
+      }
+  }
+  useEffect(()=>{
+      try {
+          fetchProducts();
+      } catch (error) {
+        console.log('Error in useEffect fetching products',error);
+          console.error('Error in useEffect fetching products:', error);
+      }
+  })
   const [productQuantities, setProductQuantities] = useState<{[key: string]: number}>({});
 
   const filterProducts = () => {
