@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
   FlatList,
-  Image,
   Modal,
   Pressable,
   StyleSheet,
@@ -12,13 +11,17 @@ import {
   View
 } from 'react-native';
 import { getMenuItems } from '../../Api/Services/Products';
+import AddMenu from '../Model/AddMenu';
 import Nav from '../NavBar/Nav';
 import Save from '../SaveOptions/Save';
+
 interface Product {
   id: string;
   name: string;
   price: number;
-  image: string;
+  color: string; // Added color field
+  diet: string; // Added diet field (e.g., "Veg", "Non-Veg", "Egg")
+  portion: string; // Added portion field (e.g., "Small", "Medium", "Large")
   isFavorite: boolean;
   hasDiscount: boolean;
   isVeg: boolean;
@@ -40,277 +43,51 @@ const FILTER_OPTIONS = [
   { label: 'Veg', value: 'veg' },
 ];
 
-// Sample data with more variety
-const SAMPLE_PRODUCTS: Product[] = [
-  {
-    id: '1',
-    name: 'Margherita Pizza',
-    price: 299,
-    image: 'https://images.unsplash.com/photo-1604382354936-07c5d9983bd3?w=100&h=100&fit=crop&crop=center',
-    isFavorite: true,
-    hasDiscount: false,
-    isVeg: true,
-  },
-  {
-    id: '2',
-    name: 'Chicken Burger',
-    price: 249,
-    discountPrice: 199,
-    image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=100&h=100&fit=crop&crop=center',
-    isFavorite: false,
-    hasDiscount: true,
-    isVeg: false,
-  },
-  {
-    id: '3',
-    name: 'Paneer Tikka',
-    price: 189,
-    image: 'https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=100&h=100&fit=crop&crop=center',
-    isFavorite: true,
-    hasDiscount: false,
-    isVeg: true,
-  },
-  {
-    id: '4',
-    name: 'Pasta Alfredo',
-    price: 229,
-    discountPrice: 179,
-    image: 'https://images.unsplash.com/photo-1621996346565-e3dbc353d2e5?w=100&h=100&fit=crop&crop=center',
-    isFavorite: false,
-    hasDiscount: true,
-    isVeg: true,
-  },
-  {
-    id: '5',
-    name: 'Fish Curry',
-    price: 319,
-    image: 'https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=100&h=100&fit=crop&crop=center',
-    isFavorite: true,
-    hasDiscount: false,
-    isVeg: false,
-  },
-  {
-    id: '6',
-    name: 'Chicken Biryani',
-    price: 389,
-    discountPrice: 329,
-    image: 'https://images.unsplash.com/photo-1563379091339-03246963d321?w=100&h=100&fit=crop&crop=center',
-    isFavorite: true,
-    hasDiscount: true,
-    isVeg: false,
-  },
-  {
-    id: '7',
-    name: 'Veg Spring Rolls',
-    price: 149,
-    image: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=100&h=100&fit=crop&crop=center',
-    isFavorite: false,
-    hasDiscount: false,
-    isVeg: true,
-  },
-  {
-    id: '8',
-    name: 'Grilled Salmon',
-    price: 499,
-    discountPrice: 399,
-    image: 'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=100&h=100&fit=crop&crop=center',
-    isFavorite: true,
-    hasDiscount: true,
-    isVeg: false,
-  },
-  {
-    id: '9',
-    name: 'Aloo Gobi',
-    price: 159,
-    image: 'https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=100&h=100&fit=crop&crop=center',
-    isFavorite: false,
-    hasDiscount: false,
-    isVeg: true,
-  },
-  {
-    id: '10',
-    name: 'Caesar Salad',
-    price: 189,
-    discountPrice: 149,
-    image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=100&h=100&fit=crop&crop=center',
-    isFavorite: false,
-    hasDiscount: true,
-    isVeg: true,
-  },
-  {
-    id: '11',
-    name: 'BBQ Chicken Wings',
-    price: 279,
-    image: 'https://images.unsplash.com/photo-1527477396000-e27163b481c2?w=100&h=100&fit=crop&crop=center',
-    isFavorite: true,
-    hasDiscount: false,
-    isVeg: false,
-  },
-  {
-    id: '12',
-    name: 'Mushroom Risotto',
-    price: 239,
-    discountPrice: 199,
-    image: 'https://images.unsplash.com/photo-1476124369491-e7addf5db371?w=100&h=100&fit=crop&crop=center',
-    isFavorite: false,
-    hasDiscount: true,
-    isVeg: true,
-  },
-  {
-    id: '13',
-    name: 'Fish Tacos',
-    price: 269,
-    image: 'https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?w=100&h=100&fit=crop&crop=center',
-    isFavorite: true,
-    hasDiscount: false,
-    isVeg: false,
-  },
-  {
-    id: '14',
-    name: 'Veggie Wrap',
-    price: 129,
-    discountPrice: 99,
-    image: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=100&h=100&fit=crop&crop=center',
-    isFavorite: false,
-    hasDiscount: true,
-    isVeg: true,
-  },
-  {
-    id: '15',
-    name: 'Butter Chicken',
-    price: 329,
-    image: 'https://images.unsplash.com/photo-1588166524941-6022e4746cb5?w=100&h=100&fit=crop&crop=center',
-    isFavorite: true,
-    hasDiscount: false,
-    isVeg: false,
-  },
-  {
-    id: '16',
-    name: 'Dal Makhani',
-    price: 179,
-    discountPrice: 149,
-    image: 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=100&h=100&fit=crop&crop=center',
-    isFavorite: false,
-    hasDiscount: true,
-    isVeg: true,
-  },
-  {
-    id: '17',
-    name: 'Prawn Curry',
-    price: 369,
-    image: 'https://images.unsplash.com/photo-1565299507177-b0ac66763828?w=100&h=100&fit=crop&crop=center',
-    isFavorite: true,
-    hasDiscount: false,
-    isVeg: false,
-  },
-  {
-    id: '18',
-    name: 'Veg Hakka Noodles',
-    price: 159,
-    discountPrice: 129,
-    image: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=100&h=100&fit=crop&crop=center',
-    isFavorite: false,
-    hasDiscount: true,
-    isVeg: true,
-  },
-  {
-    id: '19',
-    name: 'Chicken Shawarma',
-    price: 199,
-    image: 'https://images.unsplash.com/photo-1529006557810-274b9b2fc783?w=100&h=100&fit=crop&crop=center',
-    isFavorite: true,
-    hasDiscount: false,
-    isVeg: false,
-  },
-  {
-    id: '20',
-    name: 'Palak Paneer',
-    price: 189,
-    discountPrice: 159,
-    image: 'https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=100&h=100&fit=crop&crop=center',
-    isFavorite: false,
-    hasDiscount: true,
-    isVeg: true,
-  },
-  {
-    id: '21',
-    name: 'Beef Steak',
-    price: 599,
-    image: 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=100&h=100&fit=crop&crop=center',
-    isFavorite: true,
-    hasDiscount: false,
-    isVeg: false,
-  },
-  {
-    id: '22',
-    name: 'Mixed Veg Curry',
-    price: 149,
-    discountPrice: 119,
-    image: 'https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=100&h=100&fit=crop&crop=center',
-    isFavorite: false,
-    hasDiscount: true,
-    isVeg: true,
-  },
-  {
-    id: '23',
-    name: 'Lamb Korma',
-    price: 429,
-    image: 'https://images.unsplash.com/photo-1588166524941-6022e4746cb5?w=100&h=100&fit=crop&crop=center',
-    isFavorite: true,
-    hasDiscount: false,
-    isVeg: false,
-  },
-  {
-    id: '24',
-    name: 'Chole Bhature',
-    price: 139,
-    discountPrice: 109,
-    image: 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=100&h=100&fit=crop&crop=center',
-    isFavorite: false,
-    hasDiscount: true,
-    isVeg: true,
-  },
-  {
-    id: '25',
-    name: 'Thai Green Curry',
-    price: 289,
-    image: 'https://images.unsplash.com/photo-1565299507177-b0ac66763828?w=100&h=100&fit=crop&crop=center',
-    isFavorite: true,
-    hasDiscount: false,
-    isVeg: false,
-  }
-];
-
-export default function ListItems({ products = SAMPLE_PRODUCTS }: ListItemsProps) {
+export default function ListItems({ products: initialProducts = [] }: ListItemsProps) {
+  const [products, setProducts] = useState<Product[]>(initialProducts);
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [showDropdown, setShowDropdown] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  // Changed to track quantities instead of just selected products
+  const [productQuantities, setProductQuantities] = useState<{ [key: string]: number }>({});
+  const [showAddMenuModal, setShowAddMenuModal] = useState(false);
 
- async function fetchProducts() {
-      try {
-        let response = await getMenuItems();
-        console.log('Menu items fetched:', response);
-        // setProducts(response); // Uncomment if you want to replace sample data with fetched data
-      } catch (error) {
-        console.log('Failed to fetch menu items',error);
-        console.error('Error fetching menu items:', error);
-      }
+  async function fetchProducts() {
+    try {
+      const response = await getMenuItems();
+      console.log('Menu items fetched:', response);
+      
+      const mappedProducts: Product[] = response.map((item: any) => ({
+        id: item.id?.toString() || `item-${Math.random().toString(36).substr(2, 9)}`,
+        name: item.name || 'Unnamed Item',
+        price: parseFloat(item.price) || 0,
+        color: item.color || '#4F46E5', // Default color if not provided
+        diet: item.diet || 'Veg', // Default to "Veg" if not provided
+        portion: item.portion || 'Small', // Default to "Small" if not provided
+        isFavorite: item.is_favorite || false,
+        hasDiscount: item.discountPrice ? true : false,
+        isVeg: item.diet === 'Veg',
+        discountPrice: item.discountPrice ? parseFloat(item.discountPrice) : undefined,
+      }));
+      
+      setProducts(mappedProducts);
+    } catch (error) {
+      console.log('Failed to fetch menu items', error);
+      console.error('Error fetching menu items:', error);
+    }
   }
-  useEffect(()=>{
-      try {
-          fetchProducts();
-      } catch (error) {
-        console.log('Error in useEffect fetching products',error);
-          console.error('Error in useEffect fetching products:', error);
-      }
-  })
-  const [productQuantities, setProductQuantities] = useState<{[key: string]: number}>({});
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  const handleMenuAdded = () => {
+    fetchProducts();
+    setShowAddMenuModal(false);
+  };
 
   const filterProducts = () => {
     let filtered = products;
 
-    // Apply filter
     switch (selectedFilter) {
       case 'favorites':
         filtered = filtered.filter(product => product.isFavorite);
@@ -325,7 +102,6 @@ export default function ListItems({ products = SAMPLE_PRODUCTS }: ListItemsProps
         break;
     }
 
-    // Apply search
     if (searchQuery) {
       filtered = filtered.filter(product =>
         product.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -343,7 +119,7 @@ export default function ListItems({ products = SAMPLE_PRODUCTS }: ListItemsProps
   };
 
   const handleQuantityDecrease = (productId: string, event: any) => {
-    event.stopPropagation(); // Prevent triggering the parent TouchableOpacity
+    event.stopPropagation();
     setProductQuantities(prev => {
       const currentQuantity = prev[productId] || 0;
       if (currentQuantity <= 1) {
@@ -358,7 +134,7 @@ export default function ListItems({ products = SAMPLE_PRODUCTS }: ListItemsProps
   };
 
   const handleQuantityIncrease = (productId: string, event: any) => {
-    event.stopPropagation(); // Prevent triggering the parent TouchableOpacity
+    event.stopPropagation();
     setProductQuantities(prev => ({
       ...prev,
       [productId]: (prev[productId] || 0) + 1
@@ -393,24 +169,20 @@ export default function ListItems({ products = SAMPLE_PRODUCTS }: ListItemsProps
 
   const handleSave = () => {
     console.log('Saving selected products:', getSelectedProducts());
-    // Implement save functionality here
   };
 
   const handleCharge = () => {
     console.log('Charging for products:', getSelectedProducts());
     console.log('Total amount:', calculateTotalAmount());
-    // Implement charge functionality here
   };
 
   const handleAddUser = () => {
     console.log('Adding new user');
-    // Implement add user functionality here
   };
 
   const handleOrdersPress = () => {
     console.log('View orders pressed');
     console.log('Current orders:', getSelectedProducts());
-    // Implement orders view functionality here
   };
 
   const renderProduct = ({ item }: { item: Product }) => {
@@ -426,11 +198,16 @@ export default function ListItems({ products = SAMPLE_PRODUCTS }: ListItemsProps
         activeOpacity={0.7}
         onPress={() => handleProductPress(item)}
       >
-        <Image source={{ uri: item.image }} style={styles.productImage} />
+        <View style={[styles.colorSquare, { backgroundColor: item.color }]} />
         
         <View style={styles.productInfo}>
           <View style={styles.productHeader}>
-            <Text style={styles.productName}>{item.name}</Text>
+            <View style={styles.productDetails}>
+              <Text style={styles.productName}>{item.name}</Text>
+              <Text style={styles.productSubInfo}>
+                {item.diet} • {item.portion}
+              </Text>
+            </View>
             <View style={styles.badges}>
               {item.isVeg && (
                 <View style={[styles.badge, styles.vegBadge]}>
@@ -463,7 +240,6 @@ export default function ListItems({ products = SAMPLE_PRODUCTS }: ListItemsProps
               <Text style={styles.price}>₹{item.price}</Text>
             )}
             
-            {/* Quantity Controls */}
             {isSelected && (
               <View style={styles.quantityContainer}>
                 <TouchableOpacity 
@@ -497,7 +273,6 @@ export default function ListItems({ products = SAMPLE_PRODUCTS }: ListItemsProps
 
   return (
     <View style={styles.container}>
-      {/* Navigation Bar */}
       <Nav
         totalAmount={calculateTotalAmount()}
         itemCount={getTotalItemCount()}
@@ -509,9 +284,7 @@ export default function ListItems({ products = SAMPLE_PRODUCTS }: ListItemsProps
         onOrdersPress={handleOrdersPress}
       />
 
-      {/* Header with Dropdown and Search */}
       <View style={styles.header}>
-        {/* Dropdown */}
         <TouchableOpacity 
           style={styles.dropdown}
           onPress={() => setShowDropdown(true)}
@@ -521,7 +294,6 @@ export default function ListItems({ products = SAMPLE_PRODUCTS }: ListItemsProps
           <Ionicons name="chevron-down" size={20} color="#64748b" />
         </TouchableOpacity>
 
-        {/* Search */}
         <View style={styles.searchContainer}>
           <Ionicons name="search" size={20} color="#64748b" style={styles.searchIcon} />
           <TextInput
@@ -532,9 +304,16 @@ export default function ListItems({ products = SAMPLE_PRODUCTS }: ListItemsProps
             placeholderTextColor="#94a3b8"
           />
         </View>
+
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => setShowAddMenuModal(true)}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="add" size={24} color="#fff" />
+        </TouchableOpacity>
       </View>
 
-      {/* Save Component */}
       <Save 
         totalAmount={calculateTotalAmount()}
         itemCount={getTotalItemCount()}
@@ -544,7 +323,6 @@ export default function ListItems({ products = SAMPLE_PRODUCTS }: ListItemsProps
         isProcessing={false}
       />
 
-      {/* Products List */}
       <FlatList
         data={filterProducts()}
         renderItem={renderProduct}
@@ -553,7 +331,6 @@ export default function ListItems({ products = SAMPLE_PRODUCTS }: ListItemsProps
         contentContainerStyle={styles.listContainer}
       />
 
-      {/* Dropdown Modal */}
       <Modal
         visible={showDropdown}
         transparent={true}
@@ -591,6 +368,12 @@ export default function ListItems({ products = SAMPLE_PRODUCTS }: ListItemsProps
           </View>
         </Pressable>
       </Modal>
+
+      <AddMenu
+        visible={showAddMenuModal}
+        onClose={() => setShowAddMenuModal(false)}
+        onMenuAdded={handleMenuAdded}
+      />
     </View>
   );
 }
@@ -608,6 +391,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#f1f5f9',
+    alignItems: 'center',
   },
   dropdown: {
     flexDirection: 'row',
@@ -641,9 +425,16 @@ const styles = StyleSheet.create({
     color: '#334155',
     paddingVertical: 12,
   },
+  addButton: {
+    backgroundColor: '#2563eb',
+    padding: 10,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   listContainer: {
     padding: 20,
-    paddingBottom: 100, // Add extra padding for the Save component
+    paddingBottom: 100,
   },
   productItem: {
     flexDirection: 'row',
@@ -663,11 +454,11 @@ const styles = StyleSheet.create({
     borderColor: '#2563eb',
     backgroundColor: '#eff6ff',
   },
-  productImage: {
+  colorSquare: {
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#f1f5f9', // Fallback background
   },
   productInfo: {
     flex: 1,
@@ -679,12 +470,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
   },
+  productDetails: {
+    flex: 1,
+    marginRight: 8,
+  },
   productName: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1e293b',
-    flex: 1,
-    marginRight: 8,
+  },
+  productSubInfo: {
+    fontSize: 12,
+    color: '#64748b',
+    marginTop: 4,
   },
   badges: {
     flexDirection: 'row',

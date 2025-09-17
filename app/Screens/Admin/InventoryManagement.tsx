@@ -1,14 +1,14 @@
 import Categories from '@/app/Components/Items/Categories';
 import Modifier from '@/app/Components/Items/Modifier';
-import React, { useEffect, useState } from 'react';
-import { Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import Icon from 'react-native-vector-icons/MaterialIcons';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Dimensions, Platform, SafeAreaView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { getCategories, getmodifiers } from '../../Api/Services/Products';
 import AddCategory from '../../Components/Model/AddCategory';
 import AddMenu from '../../Components/Model/AddMenu';
 import AddModifiers from '../../Components/Model/AddModifiers';
 
 const { width } = Dimensions.get('window');
+const isTablet = width >= 768;
 
 const InventoryManagement = () => {
   const [categories, setCategories] = useState([]);
@@ -16,11 +16,39 @@ const InventoryManagement = () => {
   const [showAddModifier, setShowAddModifier] = useState(false);
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [showAddMenu, setShowAddMenu] = useState(false);
-  const [activeTab, setActiveTab] = useState('categories'); // Default to categories tab
+  const [activeTab, setActiveTab] = useState('categories');
+
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const cardAnims = [
+    useRef(new Animated.Value(0)).current,
+    useRef(new Animated.Value(0)).current,
+    useRef(new Animated.Value(0)).current,
+  ];
+  const scaleAnims = [
+    useRef(new Animated.Value(1)).current,
+    useRef(new Animated.Value(1)).current,
+    useRef(new Animated.Value(1)).current,
+  ];
 
   useEffect(() => {
     fetchCategories();
     fetchModifiers();
+    // Initial animations
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+      ...cardAnims.map((anim, index) =>
+        Animated.timing(anim, {
+          toValue: 1,
+          duration: 400,
+          delay: index * 100,
+          useNativeDriver: true,
+        })
+      ),
+    ]).start();
   }, []);
 
   const fetchCategories = async () => {
@@ -57,91 +85,147 @@ const InventoryManagement = () => {
     console.log('Menu item added successfully');
   };
 
+  const handleTabPress = (tab) => {
+    Animated.timing(fadeAnim, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => {
+      setActiveTab(tab);
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    });
+  };
+
+  const handleCardPressIn = (index) => {
+    Animated.spring(scaleAnims[index], {
+      toValue: 0.95,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handleCardPressOut = (index) => {
+    Animated.spring(scaleAnims[index], {
+      toValue: 1,
+      friction: 5,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const quickActionCards = [
+    {
+      id: 'menu',
+      title: '+ Menu',
+      description: 'Add new menu item',
+      color: '#4F46E5',
+      bgColor: '#EEF2FF',
+      borderColor: '#4F46E5',
+      onPress: () => setShowAddMenu(true),
+    },
+    {
+      id: 'category',
+      title: '+ Category',
+      description: 'Create new category',
+      color: '#10B981',
+      bgColor: '#ECFDF5',
+      borderColor: '#10B981',
+      onPress: () => setShowAddCategory(true),
+    },
+    {
+      id: 'modifier',
+      title: '+ Modifier',
+      description: 'Add new modifier',
+      color: '#F59E0B',
+      bgColor: '#FFFBEB',
+      borderColor: '#F59E0B',
+      onPress: () => setShowAddModifier(true),
+    },
+  ];
+
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <View style={styles.iconContainer}>
-            <Icon name="inventory" size={28} color="#4F46E5" />
-          </View>
-          <Text style={styles.title}>Inventory Management</Text>
-        </View>
-      </View>
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
       
-      {/* Quick Actions Section */}
+      {/* Quick Actions Section - Grid Layout */}
       <View style={styles.quickActions}>
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.optionsContainer}
-        >
-          {/* Add Menu Item Card */}
-          <TouchableOpacity 
-            style={[styles.optionCard, styles.menuCard]}
-            onPress={() => setShowAddMenu(true)}
-          >
-            <View style={[styles.optionIconContainer, { backgroundColor: '#EEF2FF' }]}>
-              <Icon name="restaurant" size={24} color="#4F46E5" />
-            </View>
-            <Text style={styles.optionTitle}>Add Menu Item</Text>
-            <Text style={styles.optionDescription}>Create new menu items</Text>
-          </TouchableOpacity>
-
-          {/* Add Category Card */}
-          <TouchableOpacity 
-            style={[styles.optionCard, styles.categoryCard]}
-            onPress={() => setShowAddCategory(true)}
-          >
-            <View style={[styles.optionIconContainer, { backgroundColor: '#ECFDF5' }]}>
-              <Icon name="category" size={24} color="#10B981" />
-            </View>
-            <Text style={styles.optionTitle}>Add Category</Text>
-            <Text style={styles.optionDescription}>Organize items</Text>
-          </TouchableOpacity>
-
-          {/* Add Modifier Card */}
-          <TouchableOpacity 
-            style={[styles.optionCard, styles.modifierCard]}
-            onPress={() => setShowAddModifier(true)}
-          >
-            <View style={[styles.optionIconContainer, { backgroundColor: '#FFFBEB' }]}>
-              <Icon name="tune" size={24} color="#F59E0B" />
-            </View>
-            <Text style={styles.optionTitle}>Add Modifier</Text>
-            <Text style={styles.optionDescription}>Create variations</Text>
-          </TouchableOpacity>
-        </ScrollView>
+        <View style={styles.gridContainer}>
+          {quickActionCards.map((card, index) => (
+            <Animated.View
+              key={card.id}
+              style={[
+                styles.optionCard,
+                { borderTopColor: card.borderColor, opacity: cardAnims[index] },
+                {
+                  transform: [{ scale: scaleAnims[index] }],
+                },
+              ]}
+            >
+              <TouchableOpacity
+                style={styles.cardTouchable}
+                onPress={card.onPress}
+                onPressIn={() => handleCardPressIn(index)}
+                onPressOut={() => handleCardPressOut(index)}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.optionIconContainer, { backgroundColor: card.bgColor }]}>
+                  <Text style={[styles.plusIcon, { color: card.color }]}>+</Text>
+                </View>
+                <Text style={styles.optionTitle}>{card.title}</Text>
+                <Text style={styles.optionDescription}>{card.description}</Text>
+              </TouchableOpacity>
+            </Animated.View>
+          ))}
+        </View>
       </View>
 
       {/* Tab Navigation */}
       <View style={styles.tabContainer}>
-        <TouchableOpacity 
-          style={[styles.tab, activeTab === 'categories' && styles.activeTab]}
-          onPress={() => setActiveTab('categories')}
-        >
-          <Text style={[styles.tabText, activeTab === 'categories' && styles.activeTabText]}>
-            Categories
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.tab, activeTab === 'modifiers' && styles.activeTab]}
-          onPress={() => setActiveTab('modifiers')}
-        >
-          <Text style={[styles.tabText, activeTab === 'modifiers' && styles.activeTabText]}>
-            Modifiers
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.tabIndicatorContainer}>
+          <TouchableOpacity 
+            style={[styles.tab, activeTab === 'categories' && styles.activeTab]}
+            onPress={() => handleTabPress('categories')}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.tabText, activeTab === 'categories' && styles.activeTabText]}>
+              Categories
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.tab, activeTab === 'modifiers' && styles.activeTab]}
+            onPress={() => handleTabPress('modifiers')}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.tabText, activeTab === 'modifiers' && styles.activeTabText]}>
+              Modifiers
+            </Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.tabIndicatorBackground}>
+          <Animated.View
+            style={[
+              styles.tabIndicator,
+              {
+                transform: [{
+                  translateX: activeTab === 'categories' ? 0 : width * (isTablet ? 0.46 : 0.48)
+                }],
+                width: isTablet ? '46%' : '48%',
+              },
+            ]}
+          />
+        </View>
       </View>
 
       {/* Content Area */}
-      <View style={styles.content}>
+      <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
         {activeTab === 'categories' ? (
           <Categories categories={categories} onRefresh={fetchCategories} />
         ) : (
           <Modifier modifiers={modifiers} onRefresh={fetchModifiers} />
         )}
-      </View>
+      </Animated.View>
 
       {/* Modals */}
       <AddMenu
@@ -151,21 +235,19 @@ const InventoryManagement = () => {
         categories={categories}
         modifiers={modifiers}
       />
-
       <AddCategory
         visible={showAddCategory}
         onClose={() => setShowAddCategory(false)}
         onCategoryAdded={handleCategoryAdded}
         categories={categories}
       />
-
       <AddModifiers
         visible={showAddModifier}
         onClose={() => setShowAddModifier(false)}
         onModifierAdded={handleModifierAdded}
         modifiers={modifiers}
       />
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -173,104 +255,89 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F9FAFB',
-    padding: 16,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 24,
-    marginTop: 8,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: '#EEF2FF',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#111827',
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+    paddingHorizontal: isTablet ? 24 : 16,
   },
   quickActions: {
+    marginTop: 16,
     marginBottom: 24,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 16,
-  },
-  optionsContainer: {
-    gap: 16,
-    paddingRight: 16,
+  gridContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: isTablet ? 16 : 12,
   },
   optionCard: {
-    width: width * 0.65,
+    flex: 1,
+    minWidth: isTablet ? 160 : 110,
     backgroundColor: '#ffffff',
     borderRadius: 16,
-    padding: 20,
+    padding: isTablet ? 20 : 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowRadius: 6,
+    elevation: 3,
     borderWidth: 1,
     borderColor: '#F3F4F6',
-  },
-  menuCard: {
     borderTopWidth: 4,
-    borderTopColor: '#4F46E5',
   },
-  categoryCard: {
-    borderTopWidth: 4,
-    borderTopColor: '#10B981',
-  },
-  modifierCard: {
-    borderTopWidth: 4,
-    borderTopColor: '#F59E0B',
+  cardTouchable: {
+    flex: 1,
+    alignItems: 'center',
   },
   optionIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+    width: isTablet ? 50 : 44,
+    height: isTablet ? 50 : 44,
+    borderRadius: 25,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
+  },
+  plusIcon: {
+    fontSize: isTablet ? 28 : 24,
+    fontWeight: 'bold',
   },
   optionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: isTablet ? 16 : 14,
+    fontWeight: '700',
     color: '#111827',
     marginBottom: 4,
+    textAlign: 'center',
   },
   optionDescription: {
-    fontSize: 14,
+    fontSize: isTablet ? 12 : 11,
     color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 16,
   },
   tabContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#F3F4F6',
-    borderRadius: 12,
-    padding: 4,
     marginBottom: 24,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    padding: 6,
+    position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  tabIndicatorContainer: {
+    flexDirection: 'row',
+    zIndex: 2,
   },
   tab: {
     flex: 1,
-    paddingVertical: 10,
-    borderRadius: 8,
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: isTablet ? 14 : 12,
+    borderRadius: 10,
+    backgroundColor: 'transparent',
+    zIndex: 2,
   },
   activeTab: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FFFFFF',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -278,16 +345,38 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   tabText: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: isTablet ? 16 : 14,
+    fontWeight: '600',
     color: '#6B7280',
   },
   activeTabText: {
     color: '#4F46E5',
-    fontWeight: '600',
+    fontWeight: '700',
+  },
+  tabIndicatorBackground: {
+    position: 'absolute',
+    top: 6,
+    bottom: 6,
+    left: 6,
+    right: 6,
+    zIndex: 1,
+  },
+  tabIndicator: {
+    position: 'absolute',
+    height: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+    transitionProperty: 'transform',
+    transitionDuration: '300ms',
   },
   content: {
     flex: 1,
+    backgroundColor: '#F9FAFB',
   },
 });
 

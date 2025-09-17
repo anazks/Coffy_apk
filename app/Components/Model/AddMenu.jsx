@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   Alert,
+  Dimensions,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -16,6 +17,8 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { addMenuItem, getCategories, getmodifiers, getTaxes } from '../../Api/Services/Products';
+
+const { height: screenHeight } = Dimensions.get('window');
 
 const AddMenu = ({ 
   visible, 
@@ -76,7 +79,7 @@ const AddMenu = ({
         getTaxes()
       ]);
       
-      console.log(categoriesResponse,"---")
+      console.log(categoriesResponse,"---");
 
       if (categoriesResponse.length > 0) {
         setAvailableCategories(categoriesResponse || []);
@@ -85,13 +88,11 @@ const AddMenu = ({
         setAvailableModifiers(modifiersResponse.data || []);
       }
       if (taxesResponse.status == 200) {
-        // Filter out any invalid taxes that might cause issues
         const validTaxes = (taxesResponse.data || []).filter(tax => 
           tax && tax.id && tax.tax_name
         );
         setAvailableTaxes(validTaxes);
         
-        // If we had a tax selected that no longer exists, clear it
         if (menuForm.tax && !validTaxes.some(tax => tax.id.toString() === menuForm.tax)) {
           updateMenuForm('tax', '');
           updateMenuForm('taxName', '');
@@ -141,7 +142,6 @@ const AddMenu = ({
       return;
     }
 
-    // Validate that the selected tax exists in available taxes
     if (menuForm.tax) {
       const taxExists = availableTaxes.some(tax => tax.id.toString() === menuForm.tax);
       if (!taxExists) {
@@ -166,13 +166,11 @@ const AddMenu = ({
         code: menuForm.code.trim(),
         barcode: menuForm.barcode.trim(),
         color: menuForm.color,
-        modifier: menuForm.modifier ? parseInt(menuForm.modifier) : null,
-        // Send taxes as an array, even if empty or with a single item
-        taxes: menuForm.tax ? [parseInt(menuForm.tax)] : []
+        modifier: menuForm.modifier ? parseInt(menuForm.modifier) : null
       };
 
       const response = await addMenuItem(menuData);
-      console.log(response,"---")
+      console.log(response,"---");
       
       if (response.success || response.status === 200 || response.status === 201) {
         Alert.alert('Success', 'Menu item created successfully');
@@ -190,7 +188,6 @@ const AddMenu = ({
                           error.message || 
                           'Failed to create menu item';
       
-      // Handle specific tax error
       if (errorMessage.includes('taxes') || errorMessage.includes('tax')) {
         Alert.alert('Tax Error', 'The selected tax is invalid. Please choose a different tax or contact support.');
       } else {
@@ -242,11 +239,7 @@ const AddMenu = ({
     zIndex = 1 
   }) => (
     <View style={[styles.formGroup, { zIndex }]}>
-      <View style={styles.labelContainer}>
-        <Icon name={iconName} size={16} color="#4B5563" style={styles.labelIcon} />
-        <Text style={styles.label}>{label}</Text>
-      </View>
-      
+      <Text style={styles.label}>{label}</Text>
       <TouchableOpacity 
         style={styles.dropdownButton}
         onPress={() => setShowDropdown(!showDropdown)}
@@ -257,7 +250,7 @@ const AddMenu = ({
         <Icon 
           name={showDropdown ? "keyboard-arrow-up" : "keyboard-arrow-down"} 
           size={20} 
-          color="#4B5563" 
+          color="#333" 
         />
       </TouchableOpacity>
 
@@ -282,11 +275,8 @@ const AddMenu = ({
   );
 
   const ColorPicker = ({ selectedColor, onColorSelect }) => (
-    <View style={styles.colorPicker}>
-      <View style={styles.labelContainer}>
-        <Icon name="palette" size={16} color="#4B5563" style={styles.labelIcon} />
-        <Text style={styles.label}>Color</Text>
-      </View>
+    <View style={styles.formGroup}>
+      <Text style={styles.label}>Color</Text>
       <View style={styles.colorGrid}>
         {colorPalette.map((color) => (
           <TouchableOpacity
@@ -327,220 +317,203 @@ const AddMenu = ({
         <View style={styles.modalOverlay}>
           <KeyboardAvoidingView 
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.modalContainer}
+            style={styles.keyboardAvoidingView}
             keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
           >
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Icon name="restaurant" size={24} color="#4F46E5" />
-                <Text style={styles.modalTitle}>New Menu Item</Text>
-              </View>
-              
-              <ScrollView 
-                style={styles.scrollView}
-                showsVerticalScrollIndicator={true}
-                keyboardShouldPersistTaps="handled"
-                contentContainerStyle={styles.scrollViewContent}
-              >
-                <View style={styles.formGroup}>
-                  <View style={styles.labelContainer}>
-                    <Icon name="label" size={16} color="#4B5563" style={styles.labelIcon} />
-                    <Text style={styles.label}>Item Name *</Text>
-                  </View>
-                  <TextInput
-                    style={styles.input}
-                    value={menuForm.name}
-                    onChangeText={(text) => updateMenuForm('name', text)}
-                    placeholder="Required"
-                    maxLength={255}
-                    autoFocus
-                  />
-                </View>
-
-                <CustomDropdown
-                  label="Category *"
-                  value={menuForm.category}
-                  displayValue={menuForm.categoryName}
-                  placeholder="Select Category"
-                  options={availableCategories}
-                  onSelect={handleCategorySelect}
-                  iconName="category"
-                  showDropdown={showCategoryDropdown}
-                  setShowDropdown={setShowCategoryDropdown}
-                  zIndex={70}
-                />
-
-                <View style={styles.formGroup}>
-                  <View style={styles.labelContainer}>
-                    <Icon name="attach-money" size={16} color="#4B5563" style={styles.labelIcon} />
-                    <Text style={styles.label}>Price *</Text>
-                  </View>
-                  <TextInput
-                    style={styles.input}
-                    value={menuForm.price}
-                    onChangeText={(text) => updateMenuForm('price', text)}
-                    placeholder="0.00"
-                    keyboardType="numeric"
-                  />
-                </View>
-
-                <CustomDropdown
-                  label="Tax"
-                  value={menuForm.tax}
-                  displayValue={menuForm.taxName}
-                  placeholder="Select Tax (Optional)"
-                  options={availableTaxes}
-                  onSelect={handleTaxSelect}
-                  iconName="receipt"
-                  showDropdown={showTaxDropdown}
-                  setShowDropdown={setShowTaxDropdown}
-                  zIndex={60}
-                />
-
-                <CustomDropdown
-                  label="Modifier"
-                  value={menuForm.modifier}
-                  displayValue={menuForm.modifierName}
-                  placeholder="Select Modifier (Optional)"
-                  options={availableModifiers}
-                  onSelect={handleModifierSelect}
-                  iconName="tune"
-                  showDropdown={showModifierDropdown}
-                  setShowDropdown={setShowModifierDropdown}
-                  zIndex={50}
-                />
-
-                <View style={[styles.formGroup, styles.switchContainer]}>
-                  <View style={styles.labelContainer}>
-                    <Icon name="toggle-on" size={16} color="#4B5563" style={styles.labelIcon} />
-                    <Text style={styles.label}>Status</Text>
-                  </View>
-                  <Switch
-                    value={menuForm.status}
-                    onValueChange={(value) => updateMenuForm('status', value)}
-                    thumbColor={menuForm.status ? '#4F46E5' : '#f4f3f4'}
-                    trackColor={{ false: '#E5E7EB', true: '#E0E7FF' }}
-                  />
-                </View>
-
-                <View style={[styles.formGroup, styles.switchContainer]}>
-                  <View style={styles.labelContainer}>
-                    <Icon name="storage" size={16} color="#4B5563" style={styles.labelIcon} />
-                    <Text style={styles.label}>Track Stock</Text>
-                  </View>
-                  <Switch
-                    value={menuForm.stock_track}
-                    onValueChange={(value) => updateMenuForm('stock_track', value)}
-                    thumbColor={menuForm.stock_track ? '#4F46E5' : '#f4f3f4'}
-                    trackColor={{ false: '#E5E7EB', true: '#E0E7FF' }}
-                  />
-                </View>
-
-                {menuForm.stock_track && (
-                  <>
-                    <View style={styles.formGroup}>
-                      <View style={styles.labelContainer}>
-                        <Icon name="inventory" size={16} color="#4B5563" style={styles.labelIcon} />
-                        <Text style={styles.label}>Stock Quantity</Text>
-                      </View>
-                      <TextInput
-                        style={styles.input}
-                        value={menuForm.stock}
-                        onChangeText={(text) => updateMenuForm('stock', text)}
-                        placeholder="Optional"
-                        keyboardType="numeric"
-                      />
-                    </View>
-
-                    <View style={styles.formGroup}>
-                      <View style={styles.labelContainer}>
-                        <Icon name="warning" size={16} color="#4B5563" style={styles.labelIcon} />
-                        <Text style={styles.label}>Stock Alert Level</Text>
-                      </View>
-                      <TextInput
-                        style={styles.input}
-                        value={menuForm.stock_alert}
-                        onChangeText={(text) => updateMenuForm('stock_alert', text)}
-                        placeholder="Optional"
-                        keyboardType="numeric"
-                      />
-                    </View>
-                  </>
-                )}
-
-                <View style={styles.formGroup}>
-                  <View style={styles.labelContainer}>
-                    <Icon name="description" size={16} color="#4B5563" style={styles.labelIcon} />
-                    <Text style={styles.label}>Description</Text>
-                  </View>
-                  <TextInput
-                    style={[styles.input, styles.textArea]}
-                    value={menuForm.description}
-                    onChangeText={(text) => updateMenuForm('description', text)}
-                    placeholder="Optional (max 1000 characters)"
-                    multiline
-                    numberOfLines={3}
-                    maxLength={1000}
-                  />
-                </View>
-
-                <View style={styles.formGroup}>
-                  <View style={styles.labelContainer}>
-                    <Icon name="code" size={16} color="#4B5563" style={styles.labelIcon} />
-                    <Text style={styles.label}>Code</Text>
-                  </View>
-                  <TextInput
-                    style={styles.input}
-                    value={menuForm.code}
-                    onChangeText={(text) => updateMenuForm('code', text)}
-                    placeholder="Optional (max 10 characters)"
-                    maxLength={10}
-                  />
-                </View>
-
-                <View style={styles.formGroup}>
-                  <View style={styles.labelContainer}>
-                    <Icon name="qr-code" size={16} color="#4B5563" style={styles.labelIcon} />
-                    <Text style={styles.label}>Barcode</Text>
-                  </View>
-                  <TextInput
-                    style={styles.input}
-                    value={menuForm.barcode}
-                    onChangeText={(text) => updateMenuForm('barcode', text)}
-                    placeholder="Optional (max 100 characters)"
-                    maxLength={100}
-                  />
-                </View>
-
-                <ColorPicker 
-                  selectedColor={menuForm.color}
-                  onColorSelect={(color) => updateMenuForm('color', color)}
-                />
-
-                <View style={styles.buttonRow}>
+            <View style={styles.modalContainer}>
+              <View style={styles.modalContent}>
+                {/* Header */}
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>New Menu Item</Text>
                   <TouchableOpacity 
-                    style={styles.cancelButton}
+                    style={styles.closeButton}
                     onPress={handleClose}
-                    disabled={loading}
                   >
-                    <Text style={styles.cancelButtonText}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={[styles.saveButton, {backgroundColor: '#4F46E5'}]}
-                    onPress={handleSaveMenu}
-                    disabled={loading || !menuForm.name.trim() || !menuForm.price || !menuForm.category}
-                  >
-                    {loading ? (
-                      <Text style={styles.saveButtonText}>Saving...</Text>
-                    ) : (
-                      <>
-                        <Icon name="save" size={18} color="white" style={styles.buttonIcon} />
-                        <Text style={styles.saveButtonText}>Save</Text>
-                      </>
-                    )}
+                    <Icon name="close" size={24} color="#333" />
                   </TouchableOpacity>
                 </View>
-              </ScrollView>
+                
+                {/* Scrollable Content */}
+                <ScrollView 
+                  style={styles.scrollView}
+                  contentContainerStyle={styles.scrollViewContent}
+                  showsVerticalScrollIndicator={true}
+                  keyboardShouldPersistTaps="handled"
+                  nestedScrollEnabled={true}
+                >
+                  <View style={styles.formGroup}>
+                    <Text style={styles.label}>Item Name *</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={menuForm.name}
+                      onChangeText={(text) => updateMenuForm('name', text)}
+                      placeholder="Required"
+                      maxLength={255}
+                      autoFocus
+                    />
+                  </View>
+
+                  <CustomDropdown
+                    label="Category *"
+                    value={menuForm.category}
+                    displayValue={menuForm.categoryName}
+                    placeholder="Select Category"
+                    options={availableCategories}
+                    onSelect={handleCategorySelect}
+                    iconName="category"
+                    showDropdown={showCategoryDropdown}
+                    setShowDropdown={setShowCategoryDropdown}
+                    zIndex={70}
+                  />
+
+                  <View style={styles.formGroup}>
+                    <Text style={styles.label}>Price *</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={menuForm.price}
+                      onChangeText={(text) => updateMenuForm('price', text)}
+                      placeholder="0.00"
+                      keyboardType="numeric"
+                    />
+                  </View>
+
+                  <CustomDropdown
+                    label="Tax"
+                    value={menuForm.tax}
+                    displayValue={menuForm.taxName}
+                    placeholder="Select Tax (Optional)"
+                    options={availableTaxes}
+                    onSelect={handleTaxSelect}
+                    iconName="receipt"
+                    showDropdown={showTaxDropdown}
+                    setShowDropdown={setShowTaxDropdown}
+                    zIndex={60}
+                  />
+
+                  <CustomDropdown
+                    label="Modifier"
+                    value={menuForm.modifier}
+                    displayValue={menuForm.modifierName}
+                    placeholder="Select Modifier (Optional)"
+                    options={availableModifiers}
+                    onSelect={handleModifierSelect}
+                    iconName="tune"
+                    showDropdown={showModifierDropdown}
+                    setShowDropdown={setShowModifierDropdown}
+                    zIndex={50}
+                  />
+
+                  <View style={[styles.formGroup, styles.switchContainer]}>
+                    <Text style={styles.label}>Status</Text>
+                    <Switch
+                      value={menuForm.status}
+                      onValueChange={(value) => updateMenuForm('status', value)}
+                      thumbColor={menuForm.status ? '#4F46E5' : '#ccc'}
+                      trackColor={{ false: '#ddd', true: '#E0E7FF' }}
+                    />
+                  </View>
+
+                  <View style={[styles.formGroup, styles.switchContainer]}>
+                    <Text style={styles.label}>Track Stock</Text>
+                    <Switch
+                      value={menuForm.stock_track}
+                      onValueChange={(value) => updateMenuForm('stock_track', value)}
+                      thumbColor={menuForm.stock_track ? '#4F46E5' : '#ccc'}
+                      trackColor={{ false: '#ddd', true: '#E0E7FF' }}
+                    />
+                  </View>
+
+                  {menuForm.stock_track && (
+                    <>
+                      <View style={styles.formGroup}>
+                        <Text style={styles.label}>Stock Quantity</Text>
+                        <TextInput
+                          style={styles.input}
+                          value={menuForm.stock}
+                          onChangeText={(text) => updateMenuForm('stock', text)}
+                          placeholder="Optional"
+                          keyboardType="numeric"
+                        />
+                      </View>
+
+                      <View style={styles.formGroup}>
+                        <Text style={styles.label}>Stock Alert Level</Text>
+                        <TextInput
+                          style={styles.input}
+                          value={menuForm.stock_alert}
+                          onChangeText={(text) => updateMenuForm('stock_alert', text)}
+                          placeholder="Optional"
+                          keyboardType="numeric"
+                        />
+                      </View>
+                    </>
+                  )}
+
+                  <View style={styles.formGroup}>
+                    <Text style={styles.label}>Description</Text>
+                    <TextInput
+                      style={[styles.input, styles.textArea]}
+                      value={menuForm.description}
+                      onChangeText={(text) => updateMenuForm('description', text)}
+                      placeholder="Optional (max 1000 characters)"
+                      multiline
+                      numberOfLines={3}
+                      maxLength={1000}
+                    />
+                  </View>
+
+                  <View style={styles.formGroup}>
+                    <Text style={styles.label}>Code</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={menuForm.code}
+                      onChangeText={(text) => updateMenuForm('code', text)}
+                      placeholder="Optional (max 10 characters)"
+                      maxLength={10}
+                    />
+                  </View>
+
+                  <View style={styles.formGroup}>
+                    <Text style={styles.label}>Barcode</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={menuForm.barcode}
+                      onChangeText={(text) => updateMenuForm('barcode', text)}
+                      placeholder="Optional (max 100 characters)"
+                      maxLength={100}
+                    />
+                  </View>
+
+                  <ColorPicker 
+                    selectedColor={menuForm.color}
+                    onColorSelect={(color) => updateMenuForm('color', color)}
+                  />
+                </ScrollView>
+
+                {/* Fixed Footer with Buttons */}
+                <View style={styles.modalFooter}>
+                  <View style={styles.buttonRow}>
+                    <TouchableOpacity 
+                      style={styles.cancelButton}
+                      onPress={handleClose}
+                      disabled={loading}
+                    >
+                      <Text style={styles.cancelButtonText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={[styles.saveButton, {backgroundColor: '#4F46E5'}]}
+                      onPress={handleSaveMenu}
+                      disabled={loading || !menuForm.name.trim() || !menuForm.price || !menuForm.category}
+                    >
+                      {loading ? (
+                        <Text style={styles.saveButtonText}>Saving...</Text>
+                      ) : (
+                        <Text style={styles.saveButtonText}>Save</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
             </View>
           </KeyboardAvoidingView>
         </View>
@@ -552,71 +525,81 @@ const AddMenu = ({
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+  },
+  keyboardAvoidingView: {
+    flex: 1,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
   },
   modalContainer: {
     width: '100%',
-    maxHeight: '90%',
-    flex: 1,
+    maxWidth: 500,
+    height: screenHeight * 0.85, // Use 85% of screen height
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    overflow: 'hidden',
   },
   modalContent: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 20,
-    width: '100%',
-    maxHeight: '90%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  scrollView: {
     flex: 1,
-  },
-  scrollViewContent: {
-    paddingBottom: 20,
+    flexDirection: 'column',
   },
   modalHeader: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 20,
-    justifyContent: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    backgroundColor: '#fff',
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
+    color: '#333',
+  },
+  closeButton: {
+    padding: 4,
+  },
+  scrollView: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  scrollViewContent: {
+    paddingVertical: 20,
+    paddingBottom: 40, // Extra padding at bottom
+  },
+  modalFooter: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    backgroundColor: '#fff',
   },
   formGroup: {
     marginBottom: 16,
     position: 'relative',
   },
-  labelContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-    gap: 8,
-  },
-  labelIcon: {
-    marginRight: 0,
-  },
   label: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#4B5563',
+    color: '#333',
+    marginBottom: 6,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: '#ddd',
     borderRadius: 8,
-    padding: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     fontSize: 15,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#fff',
+    color: '#333',
   },
   textArea: {
     minHeight: 80,
@@ -624,58 +607,57 @@ const styles = StyleSheet.create({
   },
   dropdownButton: {
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: '#ddd',
     borderRadius: 8,
-    padding: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#fff',
   },
   dropdownText: {
     fontSize: 15,
-    color: '#111827',
+    color: '#333',
   },
   dropdownPlaceholder: {
     fontSize: 15,
-    color: '#9CA3AF',
+    color: '#999',
   },
   dropdownOptions: {
     position: 'absolute',
     top: '100%',
     left: 0,
     right: 0,
-    backgroundColor: 'white',
+    backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: '#ddd',
     borderRadius: 8,
     marginTop: 4,
-    maxHeight: 200,
-    elevation: 5,
+    maxHeight: 150,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowRadius: 4,
+    elevation: 5,
   },
   dropdownScroll: {
-    maxHeight: 200,
+    maxHeight: 150,
   },
   dropdownOption: {
-    padding: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: '#f0f0f0',
   },
   dropdownOptionText: {
     fontSize: 15,
-    color: '#374151',
+    color: '#333',
   },
   switchContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  colorPicker: {
-    marginBottom: 20,
   },
   colorGrid: {
     flexDirection: 'row',
@@ -687,51 +669,42 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    borderWidth: 2,
-    borderColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'transparent',
   },
   selectedColor: {
-    borderColor: '#4B5563',
+    borderColor: '#333',
   },
   buttonRow: {
     flexDirection: 'row',
-    gap: 10,
-    marginTop: 16,
-    marginBottom: 10,
+    gap: 12,
   },
   cancelButton: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: '#ddd',
     borderRadius: 8,
-    padding: 14,
+    paddingVertical: 12,
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#fff',
   },
   cancelButtonText: {
     fontSize: 15,
-    color: '#4B5563',
+    color: '#333',
     fontWeight: '500',
   },
   saveButton: {
     flex: 1,
-    backgroundColor: '#4F46E5',
     borderRadius: 8,
-    padding: 14,
+    paddingVertical: 12,
     alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
   },
   saveButtonText: {
     fontSize: 15,
-    color: '#ffffff',
+    color: '#fff',
     fontWeight: '500',
-  },
-  buttonIcon: {
-    marginRight: 4,
   },
 });
 

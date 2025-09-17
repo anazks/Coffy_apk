@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import {
-    Alert,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Alert,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { addBranch } from '../Api/Services/Branch';
 export default function Branch() {
@@ -47,7 +47,7 @@ export default function Branch() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Branch Management</Text>
+        {/* <Text style={styles.title}>Branch Management</Text> */}
         <TouchableOpacity 
           style={styles.addButton}
           onPress={() => setModalVisible(true)}

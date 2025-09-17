@@ -35,7 +35,6 @@ export default function Home() {
       >
         <View style={styles.content}>
           {/* <Nav/> */}
-          {/* <Save/> */}
           <ListItems/>
           <Text style={styles.homeText}>Home Screen Content</Text>
         </View>

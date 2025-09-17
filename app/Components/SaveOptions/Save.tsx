@@ -1,12 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Dimensions,
+  Modal,
   StyleSheet,
   Text,
   TouchableOpacity,
   View
 } from 'react-native';
+import SavedOrders from '../Model/SavedOrders';
 
 interface Product {
   id: string;
@@ -28,7 +30,7 @@ interface SaveProps {
   isProcessing?: boolean;
 }
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 export default function Save({ 
   totalAmount = 0,
@@ -38,6 +40,7 @@ export default function Save({
   onCharge = () => {},
   isProcessing = false
 }: SaveProps) {
+  const [showSavedOrders, setShowSavedOrders] = useState(false);
 
   // You can now access all selected products data
   const handleSavePress = () => {
@@ -51,6 +54,7 @@ export default function Save({
     });
     
     onSave();
+    setShowSavedOrders(true); // Show SavedOrders modal
   };
 
   const handleChargePress = () => {
@@ -71,6 +75,10 @@ export default function Save({
     onCharge();
   };
 
+  const handleCloseSavedOrders = () => {
+    setShowSavedOrders(false); // Hide SavedOrders modal
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.buttonRow}>
@@ -79,26 +87,16 @@ export default function Save({
           style={[styles.button, styles.saveButton]}
           onPress={handleSavePress}
           activeOpacity={0.8}
-          disabled={itemCount === 0}
         >
           <View style={styles.buttonContent}>
             <Ionicons 
               name="bookmark" 
               size={24} 
-              color={itemCount === 0 ? "#94a3b8" : "#ffffff"} 
+              color="#ffffff" 
             />
-            <Text style={[
-              styles.buttonText, 
-              styles.saveButtonText,
-              itemCount === 0 && styles.disabledText
-            ]}>
-              Save
+            <Text style={[styles.buttonText, styles.saveButtonText]}>
+              Saved
             </Text>
-            {itemCount > 0 && (
-              <View style={styles.itemBadge}>
-                <Text style={styles.itemBadgeText}>{itemCount}</Text>
-              </View>
-            )}
           </View>
         </TouchableOpacity>
 
@@ -138,6 +136,20 @@ export default function Save({
           </View>
         </TouchableOpacity>
       </View>
+
+      {/* Modal for SavedOrders */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={showSavedOrders}
+        onRequestClose={handleCloseSavedOrders}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <SavedOrders onClose={handleCloseSavedOrders} />
+          </View>
+        </View>
+      </Modal>
 
       {/* Additional Info */}
       {/* {(itemCount > 0 || totalAmount > 0) && (
@@ -241,24 +253,6 @@ const styles = StyleSheet.create({
   disabledAmountText: {
     color: '#94a3b8',
   },
-  itemBadge: {
-    position: 'absolute',
-    top: -8,
-    right: -8,
-    backgroundColor: '#ef4444',
-    borderRadius: 12,
-    minWidth: 24,
-    height: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#ffffff',
-  },
-  itemBadgeText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '700',
-  },
   processingIndicator: {
     position: 'absolute',
     top: -4,
@@ -266,6 +260,17 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     borderRadius: 12,
     padding: 4,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)', // Semi-transparent background
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: width,
+    height: height,
+    backgroundColor: '#f8fafc',
   },
   infoRow: {
     flexDirection: 'row',

@@ -30,7 +30,8 @@ export const addMenuItem = async (data: any) => {
         try {
             console.log(data,"menu from friend end")
             let res = await Axios.post('/menu/menu/', data);
-            return res.data;
+            console.log(res,"menu added.....")
+            return res;
         } catch (error) {
             console.error('Error adding menu item:', error);
             throw error;   
@@ -82,9 +83,33 @@ export const AddTax = async (data: any) => {
 export const getTaxes = async () => {
         try {
             let res = await Axios.get('/menu/taxes/');
+            console.log(res,"--")
             return res;
         } catch (error) {
             console.error('Error fetching taxes:', error);
             throw error;   
         }
 }
+
+export const CreateOrder = async(data:any)=>{
+     try {
+        console.log(data,"create order")
+        let res = await Axios.post('/orders/create/',data)
+        console.log(res)
+        return res
+     } catch (error) {
+        console.log(error)
+        return error
+     }
+}
+export const getOrders = async()=>{
+     try {
+        let res = await Axios.get('/orders/order-list/')
+        console.log(res)
+        return res
+     } catch (error) {
+        console.log(error)
+        return error
+     }
+}
+

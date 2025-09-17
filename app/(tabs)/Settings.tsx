@@ -1,15 +1,41 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import React, { useRef, useState } from 'react';
+import { Animated, Dimensions, Platform, SafeAreaView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import TaxSettings from '../Screens/Admin/Taxes';
 import Branch from '../Screens/Branch';
 import Printer from '../Screens/Printer';
 import Profile from '../Screens/Profile';
 
+const { width } = Dimensions.get('window');
+const isTablet = width >= 768;
+
 export default function Taxes() {
-  const [activeTab, setActiveTab] = useState('Taxes'); // default screen
+  const [activeTab, setActiveTab] = useState('Taxes');
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+
+  const tabs = [
+    { id: 'Taxes', label: 'Taxes', icon: 'calculator-outline' },
+    { id: 'Profile', label: 'Profile', icon: 'person-outline' },
+    { id: 'Printer', label: 'Printer', icon: 'print-outline' },
+    { id: 'Branch', label: 'Branch', icon: 'storefront-outline' },
+  ];
 
   const renderContent = () => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
     switch (activeTab) {
       case 'Taxes':
         return <TaxSettings />;
@@ -17,76 +43,138 @@ export default function Taxes() {
         return <Profile />;
       case 'Printer':
         return <Printer />;
-      case 'Branch': // Add case for Branch
+      case 'Branch':
         return <Branch />;
       default:
         return <TaxSettings />;
     }
   };
 
+  const handleTabPress = (tabId) => {
+    fadeAnim.setValue(0);
+    slideAnim.setValue(50);
+    setActiveTab(tabId);
+  };
+
   return (
-    <View style={styles.container}>
-      {/* Tab Buttons */}
-      <View style={styles.tabBar}>
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'Taxes' && styles.activeTab]}
-          onPress={() => setActiveTab('Taxes')}
-        >
-          <Text style={[styles.tabText, activeTab === 'Taxes' && styles.activeText]}>Taxes</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'Profile' && styles.activeTab]}
-          onPress={() => setActiveTab('Profile')}
-        >
-          <Text style={[styles.tabText, activeTab === 'Profile' && styles.activeText]}>Profile</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'Printer' && styles.activeTab]}
-          onPress={() => setActiveTab('Printer')}
-        >
-          <Text style={[styles.tabText, activeTab === 'Printer' && styles.activeText]}>Printer</Text>
-        </TouchableOpacity>
-        
-        {/* Add Branch Tab Button */}
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'Branch' && styles.activeTab]}
-          onPress={() => setActiveTab('Branch')}
-        >
-          <Text style={[styles.tabText, activeTab === 'Branch' && styles.activeText]}>Branch</Text>
-        </TouchableOpacity>
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+      
+      {/* Sticky Tab Bar */}
+      <View style={styles.tabBarContainer}>
+        <View style={styles.tabBar}>
+          {tabs.map((tab) => (
+            <TouchableOpacity
+              key={tab.id}
+              style={[
+                styles.tabButton,
+                activeTab === tab.id && styles.activeTab,
+              ]}
+              onPress={() => handleTabPress(tab.id)}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name={activeTab === tab.id ? tab.icon.replace('-outline', '') : tab.icon}
+                size={isTablet ? 24 : 20}
+                color={activeTab === tab.id ? '#ffffff' : '#6b7280'}
+                style={styles.tabIcon}
+              />
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === tab.id && styles.activeText,
+                ]}
+              >
+                {tab.label}
+              </Text>
+              {activeTab === tab.id && <View style={styles.activeIndicator} />}
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
 
-      {/* Active Component */}
-      <View style={styles.content}>{renderContent()}</View>
-    </View>
+      {/* Content */}
+      <Animated.View style={[
+        styles.content,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }],
+        }
+      ]}>
+        {renderContent()}
+      </Animated.View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9FAFB' },
+  container: {
+    flex: 1,
+    backgroundColor: '#f9fafb',
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0, // Ensure no overlap with status bar
+  },
+  tabBarContainer: {
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
+    zIndex: 1000, // Ensure tab bar stays above content
+  },
   tabBar: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    backgroundColor: '#E5E7EB',
-    paddingVertical: 10,
+    paddingVertical: isTablet ? 16 : 12,
+    paddingHorizontal: isTablet ? '5%' : 12,
+    marginTop: Platform.OS === 'ios' ? 10 : 8, // Extra margin to avoid notification overlap
   },
   tabButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: isTablet ? 12 : 10,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    marginHorizontal: 4,
+    minHeight: 50, // Improved touch target
   },
   activeTab: {
-    backgroundColor: '#4F46E5',
+    backgroundColor: '#4f46e5',
+    shadowColor: '#4f46e5',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  tabIcon: {
+    marginRight: 8,
   },
   tabText: {
-    fontSize: 16,
-    color: '#374151',
-    fontWeight: '500',
+    fontSize: isTablet ? 16 : 14,
+    fontWeight: '600',
+    color: '#6b7280',
   },
   activeText: {
-    color: 'white',
+    color: '#ffffff',
   },
-  content: { flex: 1, padding: 10 },
+  activeIndicator: {
+    position: 'absolute',
+    bottom: -2,
+    left: '50%',
+    transform: [{ translateX: -10 }],
+    width: 20,
+    height: 3,
+    backgroundColor: '#ffffff',
+    borderRadius: 2,
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: isTablet ? '5%' : 16,
+    paddingVertical: 16,
+    backgroundColor: '#f9fafb',
+  },
 });
