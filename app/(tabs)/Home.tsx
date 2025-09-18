@@ -1,44 +1,40 @@
-import React from 'react'
-import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native'
-import ListItems from '../Components/Items/ListItems'
+import React from 'react';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import ListItems from '../Components/Items/ListItems';
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
+    flex: 1
   },
   scrollContainer: {
-    flexGrow: 1,
-    paddingBottom: Platform.OS === 'ios' ? 100 : 90, // Account for tab bar height
-  },
-  content: {
-    paddingTop: Platform.OS === 'ios' ? 50 : 30, // Account for status bar
+    padding: 5,
   },
   homeText: {
     fontSize: 16,
-    color: '#64748b',
+    color: '#6B7280',
     textAlign: 'center',
-    paddingVertical: 20,
-    paddingHorizontal: 20,
+  
   },
-})
+});
 
 export default function Home() {
   return (
-    <View style={styles.container}>
-      <ScrollView 
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
         style={styles.container}
-        contentContainerStyle={styles.scrollContainer}
-        showsVerticalScrollIndicator={false}
-        bounces={true}
-        keyboardShouldPersistTaps="handled"
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        <View style={styles.content}>
-          {/* <Nav/> */}
-          <ListItems/>
+        <ScrollView
+          contentContainerStyle={styles.scrollContainer}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <ListItems />
           <Text style={styles.homeText}>Home Screen Content</Text>
-        </View>
-      </ScrollView>
-    </View>
-  )
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
 }

@@ -1,3 +1,4 @@
+import { CheckOutOrder } from '@/app/Api/Services/Orders';
 import { Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
 import { useNavigation } from '@react-navigation/native';
@@ -14,7 +15,21 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { CreateOrder, getOrders } from '../../Api/Services/Products';
+import { getOrders } from '../../Api/Services/Products';
+
+
+// If CheckOut doesn't exist, we'll create a placeholder function
+// Replace this with your actual API call
+const CheckOut = async (checkoutData) => {
+  console.log('Checkout API called with:', checkoutData);
+    try {
+      let response = await CheckOutOrder(checkoutData)
+      console.log(response,"checkout reposne")
+    } catch (error) {
+      console.log(error)
+    }
+  
+};
 
 const { width } = Dimensions.get('window');
 const isTablet = width >= 768;
@@ -59,6 +74,7 @@ export default function SavedOrders() {
 
   const updateOrder = async (orderId, updatedData) => {
     console.log('Updating order:', orderId, updatedData);
+    // This is a placeholder - replace with your actual API implementation
     return { status: 200, message: 'Order updated successfully' };
   };
 
@@ -104,50 +120,34 @@ export default function SavedOrders() {
       return;
     }
     try {
-      const apiData = {
+      const checkoutData = {
         order: parseInt(order.id),
-        order_method: mapOrderMethod(order.order_method),
         payment_method: selectedPaymentMethod[order.id],
         payment_status: selectedPaymentStatus[order.id],
-        payment_reference: `REF-${order.id}-${Date.now()}`,
-        notes: order.special_instructions || '',
-        cash_amount: selectedPaymentMethod[order.id] === 'Cash' ? parseFloat(order.total_price) : 0,
-        card_amount: selectedPaymentMethod[order.id] === 'Card' ? parseFloat(order.total_price) : 0,
-        upi_amount: selectedPaymentMethod[order.id] === 'UPI' ? parseFloat(order.total_price) : 0,
-        other_amount: ['Tabby', 'Bank Transfer', 'Digital Wallet', 'Split Payment'].includes(selectedPaymentMethod[order.id]) ? parseFloat(order.total_price) : 0,
-        customer_name: order.user_name || 'Unknown Customer',
-        customer_phone: order.user_phone || '',
-        delivery_address: order.order_method.toLowerCase() === 'delivery' ? (order.delivery_address || '') : '',
-        discount_amount: order.discount_amount || 0,
-        discount_reason: order.discount_reason || '',
-        service_charge: order.service_charge || 0,
+        // Add any other required fields based on your API documentation
       };
-      console.log('Sending checkout order:', JSON.stringify(apiData, null, 2));
-      const response = await CreateOrder(apiData);
+      
+      console.log('Sending checkout data:', JSON.stringify(checkoutData, null, 2));
+      const response = await CheckOut(checkoutData);
       console.log('Checkout response:', response);
+      
       if (response.status === 200 || response.status === 201) {
         Alert.alert('Success', 'Order processed successfully!', [
           { 
             text: 'Great!', 
-            onPress: handleClose
+            onPress: () => {
+              // Remove the order from the list after successful checkout
+              setOrders(orders.filter(o => o.id !== order.id));
+              handleClose();
+            }
           }
         ]);
-        setOrders(orders.filter(o => o.id !== order.id));
       } else {
         Alert.alert('Error', response.message || 'Failed to process checkout');
       }
     } catch (error) {
       console.error('Error processing checkout:', error);
       Alert.alert('Error', 'Failed to process checkout. Please try again.');
-    }
-  };
-
-  const mapOrderMethod = (method) => {
-    switch (method?.toLowerCase() || '') {
-      case 'takeaway': return 'Takeaway';
-      case 'dine-in': return 'Dine In';
-      case 'delivery': return 'Delivery';
-      default: return 'TAKEOUT';
     }
   };
 
@@ -173,7 +173,7 @@ export default function SavedOrders() {
 
   const renderOrderItem = ({ item }) => {
     const isExpanded = expandedOrderId === item.id;
-    const paymentMethods = ['Cash', 'Card', 'UPI', 'Bank Transfer', 'Other'];
+    const paymentMethods = ['Cash', 'Card', 'UPI', 'Tabby', 'Bank Transfer', 'Digital Wallet', 'Split Payment'];
     const paymentStatuses = ['Pending', 'Paid', 'Failed', 'Partial'];
 
     return (

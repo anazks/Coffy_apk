@@ -2,8 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { Modal, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import OrderDetailsModal from '../../Components/OrderDetails/OrderDetailsModal'; // Import the modal component
-import SaveCustomer from '../../Components/SaveOptions/SaveCustomer'; // Import SaveCustomer component
+import OrderDetailsModal from '../../Components/OrderDetails/OrderDetailsModal';
+import SaveCustomer from '../../Components/SaveOptions/SaveCustomer';
 
 interface Product {
   id: string;
@@ -61,83 +61,65 @@ interface NavProps {
   onOrdersPress?: () => void;
   onOrderComplete?: (orderData: OrderData) => void;
   onSaveOrder?: (orderData: Partial<OrderData>) => void;
-  onSaveCustomer?: (customer: Customer) => void; // New prop for handling customer save
-  existingCustomers?: Customer[]; // Existing customers for search
-  onInventoryPress?: () => void; // New prop for inventory management
+  onSaveCustomer?: (customer: Customer) => void;
+  existingCustomers?: Customer[];
+  onInventoryPress?: () => void;
 }
 
-export default function Nav({ 
+export default function Nav({
   totalAmount = 0,
   itemCount = 0,
   selectedProducts = [],
   onSave = () => {},
   onCharge = () => {},
   isProcessing = false,
-  onAddUser = () => {}, 
+  onAddUser = () => {},
   onOrdersPress = () => {},
   onOrderComplete = () => {},
   onSaveOrder = () => {},
   onSaveCustomer = () => {},
   existingCustomers = [],
-  onInventoryPress = () => {}
+  onInventoryPress = () => {},
 }: NavProps) {
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
-  
-  // Calculate total number of orders (unique products with quantity > 0)
+
   const orderCount = selectedProducts.length;
-  
-  // Calculate actual total amount from selectedProducts if not provided
+
   const calculatedTotal = selectedProducts.reduce((sum, product) => {
-    const price = product.hasDiscount && product.discountPrice 
-      ? product.discountPrice 
+    const price = product.hasDiscount && product.discountPrice
+      ? product.discountPrice
       : product.price;
-    return sum + (price * product.quantity);
+    return sum + price * product.quantity;
   }, 0);
-  
-  // Use provided totalAmount or calculate from products
+
   const displayTotal = totalAmount > 0 ? totalAmount : calculatedTotal;
 
   const handleOrdersPress = () => {
     if (orderCount > 0) {
       setShowOrderModal(true);
     } else {
-      // If no orders, call the original onOrdersPress function
       onOrdersPress();
     }
   };
 
   const handleOrderComplete = (orderData: OrderData) => {
-    // Call the parent's onOrderComplete function
     onOrderComplete(orderData);
-    
-    // You can also perform additional actions here like:
-    // - Clear the cart
-    // - Show success message
-    // - Navigate to order history
-    
     console.log('Order completed:', orderData);
   };
 
   const handleSaveOrder = (orderData: Partial<OrderData>) => {
-    // Call the parent's onSaveOrder function
     onSaveOrder(orderData);
-    
     console.log('Order saved:', orderData);
   };
 
   const handleAddUserPress = () => {
-    // Show the SaveCustomer modal instead of calling onAddUser
     setShowCustomerModal(true);
   };
 
   const handleSaveCustomer = (customer: Customer) => {
-    // Call the parent's onSaveCustomer function
     onSaveCustomer(customer);
-    
-    // Close the modal
     setShowCustomerModal(false);
-    
     console.log('Customer saved:', customer);
   };
 
@@ -148,48 +130,30 @@ export default function Nav({
   return (
     <>
       <View style={styles.container}>
-        {/* Left side - App title or logo space */}
         <View style={styles.leftSection}>
           <Text style={styles.appTitle}>Coffy Byte</Text>
         </View>
-
-        {/* Right side - Actions */}
         <View style={styles.rightSection}>
-          {/* Total Amount Display - Show when there are items */}
-          {/* {displayTotal > 0 && (
-            <View style={styles.totalAmountContainer}>
-              <Text style={styles.totalAmountText}>
-                ${displayTotal.toFixed(2)}
-              </Text>
-            </View>
-          )} */}
-
-          {/* Inventory Management Button */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.inventoryButton}
-            onPress={()=>router.push('/Screens/Admin/InventoryManagement')}
+            onPress={() => router.push('/Screens/Admin/InventoryManagement')}
             activeOpacity={0.7}
+            accessible
+            accessibilityLabel="Go to inventory management"
           >
-            <Ionicons 
-              name="storefront" 
-              size={20} 
-              color="#2563eb" 
-            />
+            <Ionicons name="storefront" size={20} color="#2563EB" />
           </TouchableOpacity>
-
-          {/* Order Count Display */}
-          <TouchableOpacity 
-            style={[
-              styles.orderContainer,
-              orderCount > 0 && styles.orderContainerActive
-            ]}
+          <TouchableOpacity
+            style={[styles.orderContainer, orderCount > 0 && styles.orderContainerActive]}
             onPress={handleOrdersPress}
             activeOpacity={0.7}
+            accessible
+            accessibilityLabel="View orders"
           >
-            <Ionicons 
-              name="receipt" 
-              size={20} 
-              color={orderCount > 0 ? "#ffffff" : "#2563eb"} 
+            <Ionicons
+              name="receipt"
+              size={20}
+              color={orderCount > 0 ? "#FFFFFF" : "#2563EB"}
             />
             {orderCount > 0 && (
               <View style={styles.orderBadge}>
@@ -199,23 +163,17 @@ export default function Nav({
               </View>
             )}
           </TouchableOpacity>
-
-          {/* Add User Button */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.addUserButton}
             onPress={handleAddUserPress}
             activeOpacity={0.7}
+            accessible
+            accessibilityLabel="Add new customer"
           >
-            <Ionicons 
-              name="person-add" 
-              size={22} 
-              color="#ffffff" 
-            />
+            <Ionicons name="person-add" size={22} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
       </View>
-
-      {/* Order Details Modal - Pass all necessary props */}
       <OrderDetailsModal
         visible={showOrderModal}
         onClose={() => setShowOrderModal(false)}
@@ -223,8 +181,6 @@ export default function Nav({
         onOrderComplete={handleOrderComplete}
         onSaveOrder={handleSaveOrder}
       />
-
-      {/* Save Customer Modal */}
       <Modal
         visible={showCustomerModal}
         animationType="slide"
@@ -243,19 +199,23 @@ export default function Nav({
 
 const styles = StyleSheet.create({
   container: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'ios' ? 50 : 30,
-    paddingBottom: 15,
-    backgroundColor: '#ffffff',
+    paddingHorizontal: 16,
+    paddingVertical: Platform.OS === 'ios' ? 10 : 8,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: '#E5E7EB',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
     elevation: 3,
   },
   leftSection: {
@@ -264,7 +224,7 @@ const styles = StyleSheet.create({
   appTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1e293b',
+    color: '#111827',
     letterSpacing: -0.5,
   },
   rightSection: {
@@ -275,17 +235,17 @@ const styles = StyleSheet.create({
   orderContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#eff6ff',
+    backgroundColor: '#EFF6FF',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
     position: 'relative',
   },
   orderContainerActive: {
-    backgroundColor: '#2563eb',
+    backgroundColor: '#2563EB',
   },
   orderBadge: {
-    backgroundColor: '#dc2626',
+    backgroundColor: '#DC2626',
     borderRadius: 10,
     minWidth: 20,
     height: 20,
@@ -295,38 +255,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   orderCount: {
-    color: '#ffffff',
+    color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '600',
     textAlign: 'center',
   },
-  totalAmountContainer: {
-    backgroundColor: '#22c55e',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  totalAmountText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '700',
-  },
   inventoryButton: {
-    backgroundColor: '#eff6ff',
+    backgroundColor: '#EFF6FF',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#2563eb',
+    borderColor: '#2563EB',
   },
   addUserButton: {
-    backgroundColor: '#2563eb',
+    backgroundColor: '#2563EB',
     width: 42,
     height: 42,
     borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#2563eb',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,

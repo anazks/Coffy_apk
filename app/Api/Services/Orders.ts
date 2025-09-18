@@ -18,10 +18,12 @@ export const getOrders = async () => {
         }
 }
 
-export const CheckOut = async (data: any) => {
+export const CheckOutOrder = async (data: any) => {
         try {
+            console.log(data)
             const response = await Axios.post('/orders/checkout/', data)
-            return response.data
+            console.log(data)
+            return response
         }   catch (error) {
             throw error 
         }   
