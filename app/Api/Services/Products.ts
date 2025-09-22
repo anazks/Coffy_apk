@@ -47,6 +47,8 @@ export const getMenuItems = async () => {
             throw error; 
         }
 }
+
+
 export const addModifier = async (data: any) => {
         try {
             console.log('Adding modifier with data:', data);
@@ -59,6 +61,19 @@ export const addModifier = async (data: any) => {
         }
 }
 
+export const updateModifier = async(id:number,data:any)=>{
+        try {
+            console.log(data,id,"modifier from friend end")
+            let res = await Axios.patch(`/menu/modifiers/${id}/`,data)
+            console.log(res,"modifier updated.....")
+            return res
+        } catch (error) {
+            console.log(error)
+            return error
+        }
+}
+
+
 export const getmodifiers = async () => {
         try {
             let res = await Axios.get('/menu/modifiers/');
@@ -69,6 +84,28 @@ export const getmodifiers = async () => {
         }
 }
 
+export const updateModifierOption = async (id: number, data: any) => {
+        try {
+            console.log('Updating modifier option with ID:', id, 'and data:', data);
+            let res = await Axios.patch(`/menu/modifiers/${id}/options`, data);
+            console.log('Modifier option updated successfully:', res.data);
+            return res.data;
+        } catch (error) {
+            console.error('Error updating modifier option:', error);
+            throw error;   
+        }
+}
+export const addModifierOption = async (data: any) => {
+        try {
+            console.log('Adding modifier option with data:', data);
+            let res = await Axios.post('/menu/modifier-options/', data);
+            console.log('Modifier option added successfully:', res.data);
+            return res.data;
+        } catch (error) {
+            console.error('Error adding modifier option:', error);
+            throw error;   
+        }
+}
 
 export const AddTax = async (data: any) => {
         try {
@@ -111,17 +148,6 @@ export const getOrders = async()=>{
         console.log(error)
         return error
      }
-}
-export const updateModifier = async(id:number,data:any)=>{
-        try {
-            console.log(data,id,"modifier from friend end")
-            let res = await Axios.patch(`/menu/modifier-options/${id}/`,data)
-            console.log(res,"modifier updated.....")
-            return res
-        } catch (error) {
-            console.log(error)
-            return error
-        }
 }
 
 export const updateCategory = async(id:number,data:any)=>{

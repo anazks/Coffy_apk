@@ -109,29 +109,45 @@ export default function OrderDetailsModal({
       case 'delivery':
         return 'Delivery';
       default:
-        return 'DINE_IN';
+        return 'Dine In';
     }
   };
 
   // Format data for CreateOrder API
   const formatOrderData = (isSavedForLater: boolean) => {
-    const data = {
+    const data: any = {
       order_method: mapOrderMethod(orderType),
-      table_id: orderType === 'dine-in' && tableId.trim() ? parseInt(tableId) || null : null,
-      total_amount: totalAmount.toFixed(2),
-      ticket_name: ticketName.trim() || null,
-      items: selectedProducts.map(product => ({
-        menu_item_id: parseInt(product.id) || null,
-        quantity: product.quantity || 1,
-        special_instructions: comment.trim() || null,
-        add_ons: product.modifier && !isNaN(parseInt(product.modifier)) ? [parseInt(product.modifier)] : [],
-        is_saved_for_later: isSavedForLater,
-      })),
+      // total_amount: totalAmount.toFixed(2),
+      items: selectedProducts.map(product => {
+        const item: any = {
+          menu_item_id: parseInt(product.id) || null,
+          quantity: product.quantity || 1,
+          // is_saved_for_later: isSavedForLater,
+        };
+        
+        // Only include special_instructions if it has a value
+        if (comment.trim()) {
+          item.special_instructions = comment.trim();
+        }
+        
+        // Only include add_ons if modifier exists and is a valid number
+        if (product.modifier && !isNaN(parseInt(product.modifier))) {
+          item.add_ons = [parseInt(product.modifier)];
+        }
+        
+        return item;
+      }),
     };
     
-    // Remove null values to clean up the API call
-    if (data.table_id === null) delete data.table_id;
-    if (data.ticket_name === null) delete data.ticket_name;
+    // Only include ticket_name if it has a value
+    if (ticketName.trim()) {
+      data.ticket_name = ticketName.trim();
+    }
+    
+    // Only include table_id for dine-in and if it has a valid value
+    if (orderType === 'dine-in' && tableId.trim() && !isNaN(parseInt(tableId))) {
+      data.table_id = parseInt(tableId);
+    }
     
     return data;
   };
