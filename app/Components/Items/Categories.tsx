@@ -1,4 +1,4 @@
-import { getCategories } from '@/app/Api/Services/Products';
+import { getCategories, updateCategory } from '@/app/Api/Services/Products';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
@@ -71,16 +71,20 @@ export default function Categories() {
     }
 
     try {
-      const updatedCategories = categories.map(cat => 
-        cat.id === selectedCategory.id 
-          ? { ...cat, ...editForm }
-          : cat
-      );
-      setCategories(updatedCategories);
-      
-      setEditModalVisible(false);
-      setSelectedCategory(null);
-      Alert.alert('Success', 'Category updated successfully');
+      const response = await updateCategory(selectedCategory.id, editForm);
+      if (response && response.status === 200) {
+        const updatedCategories = categories.map(cat => 
+          cat.id === selectedCategory.id 
+            ? { ...cat, ...editForm }
+            : cat
+        );
+        setCategories(updatedCategories);
+        setEditModalVisible(false);
+        setSelectedCategory(null);
+        Alert.alert('Success', 'Category updated successfully');
+      } else {
+        throw new Error('Invalid response from server');
+      }
     } catch (error) {
       console.error('Update error:', error);
       Alert.alert('Error', 'Failed to update category');

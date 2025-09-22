@@ -112,4 +112,38 @@ export const getOrders = async()=>{
         return error
      }
 }
+export const updateModifier = async(id:number,data:any)=>{
+        try {
+            console.log(data,id,"modifier from friend end")
+            let res = await Axios.patch(`/menu/modifier-options/${id}/`,data)
+            console.log(res,"modifier updated.....")
+            return res
+        } catch (error) {
+            console.log(error)
+            return error
+        }
+}
 
+export const updateCategory = async(id:number,data:any)=>{
+        try {
+            console.log(data,id,"category from friend end")
+            let res = await Axios.patch(`/menu/categories/${id}/`,data)
+            console.log(res,"category updated.....")
+            return res
+        }
+        catch (error) {
+            console.log(error)
+            return error
+        }
+}
+export const updateMenuItem = async(id:number,data:any)=>{
+        try {
+            console.log(data,id,"menu from friend end")
+            let res = await Axios.patch(`/menu/menu/${id}/`,data)
+            console.log(res,"menu updated.....")
+            return res
+        } catch (error) {
+            console.log(error)
+            return error
+        }
+}

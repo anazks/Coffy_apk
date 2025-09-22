@@ -1,7 +1,7 @@
-import { getMenuItems } from '@/app/Api/Services/Products';
+import { getMenuItems, updateMenuItem } from '@/app/Api/Services/Products';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Modal, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Modal, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 const Menu = () => {
   const [menuItems, setMenuItems] = useState([]);
@@ -60,25 +60,28 @@ const Menu = () => {
       return;
     }
     try {
-      // Placeholder for API call to update menu item
-      // await updateMenuItem(selectedItem.id, editForm);
-      const updatedItems = menuItems.map((item) =>
-        item.id === selectedItem.id
-          ? {
-              ...item,
-              name: editForm.name,
-              price: parseFloat(editForm.price),
-              diet: editForm.diet,
-              portion: editForm.portion,
-              discountPrice: editForm.discountPrice ? parseFloat(editForm.discountPrice) : undefined,
-              is_favorite: editForm.is_favorite,
-            }
-          : item
-      );
-      setMenuItems(updatedItems);
-      setEditModalVisible(false);
-      setSelectedItem(null);
-      Alert.alert('Success', 'Menu item updated');
+      const updatedData = {
+        name: editForm.name,
+        price: parseFloat(editForm.price),
+        diet: editForm.diet,
+        portion: editForm.portion,
+        discountPrice: editForm.discountPrice ? parseFloat(editForm.discountPrice) : null,
+        is_favorite: editForm.is_favorite,
+      };
+      const response = await updateMenuItem(selectedItem.id, updatedData);
+      if (response && response.status === 200) {
+        const updatedItems = menuItems.map((item) =>
+          item.id === selectedItem.id
+            ? { ...item, ...updatedData }
+            : item
+        );
+        setMenuItems(updatedItems);
+        setEditModalVisible(false);
+        setSelectedItem(null);
+        Alert.alert('Success', 'Menu item updated');
+      } else {
+        throw new Error('Invalid response from server');
+      }
     } catch (error) {
       console.error('Update error:', error);
       Alert.alert('Error', 'Failed to update menu item');
@@ -102,8 +105,6 @@ const Menu = () => {
 
   const confirmDelete = async (item) => {
     try {
-      // Placeholder for API call to delete menu item
-      // await deleteMenuItem(item.id);
       setMenuItems(menuItems.filter((i) => i.id !== item.id));
       Alert.alert('Success', 'Menu item deleted');
     } catch (error) {
@@ -210,7 +211,7 @@ const Menu = () => {
                 <Ionicons name="close" size={24} color="#6B7280" />
               </TouchableOpacity>
             </View>
-            <View style={styles.modalContent}>
+            <ScrollView style={styles.modalContent}>
               <Text style={styles.inputLabel}>Name</Text>
               <TextInput
                 style={styles.textInput}
@@ -274,7 +275,7 @@ const Menu = () => {
                   {editForm.is_favorite ? 'Remove from Favorites' : 'Add to Favorites'}
                 </Text>
               </TouchableOpacity>
-            </View>
+            </ScrollView>
             <View style={styles.modalActions}>
               <TouchableOpacity
                 style={[styles.modalButton, styles.cancelButton]}
@@ -418,6 +419,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     width: '90%',
     padding: 16,
+    maxHeight: '80%', // Ensure modal doesn't exceed screen height
   },
   modalHeader: {
     flexDirection: 'row',
