@@ -468,7 +468,7 @@ const AddMenu = ({
                       style={styles.input}
                       value={menuForm.code}
                       onChangeText={(text) => updateMenuForm('code', text)}
-                      placeholder="Optional (max 10 characters)"
+                      placeholder="required (max 10 characters)"
                       maxLength={10}
                     />
                   </View>

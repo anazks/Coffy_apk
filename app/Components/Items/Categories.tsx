@@ -1,4 +1,4 @@
-import { getCategories, updateCategory } from '@/app/Api/Services/Products';
+import { getCategories, updateCategory, deleteCategory } from '@/app/Api/Services/Products';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
@@ -100,21 +100,24 @@ export default function Categories() {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => confirmDelete(category),
+          onPress: async () => {
+            try {
+              const response = await deleteCategory(category.id);
+              if (response && response.status === 204) {
+                const updatedCategories = categories.filter(cat => cat.id !== category.id);
+                setCategories(updatedCategories);
+                Alert.alert('Success', 'Category deleted');
+              } else {
+                throw new Error('Invalid response from server');
+              }
+            } catch (error) {
+              console.error('Delete error:', error);
+              Alert.alert('Error', 'Failed to delete category');
+            }
+          },
         },
       ],
     );
-  };
-
-  const confirmDelete = async (category) => {
-    try {
-      const updatedCategories = categories.filter(cat => cat.id !== category.id);
-      setCategories(updatedCategories);
-      Alert.alert('Success', 'Category deleted');
-    } catch (error) {
-      console.error('Delete error:', error);
-      Alert.alert('Error', 'Failed to delete category');
-    }
   };
 
   const toggleStatus = async (category) => {
@@ -142,17 +145,6 @@ export default function Categories() {
       </View>
 
       <View style={styles.actions}>
-        <TouchableOpacity
-          style={styles.actionBtn}
-          onPress={() => toggleStatus(item)}
-        >
-          <Ionicons 
-            name={item.active ? "pause" : "play"} 
-            size={16} 
-            color="#666" 
-          />
-        </TouchableOpacity>
-
         <TouchableOpacity
           style={styles.actionBtn}
           onPress={() => handleEdit(item)}
@@ -357,7 +349,6 @@ const styles = StyleSheet.create({
     color: '#999',
     marginTop: 12,
   },
-  // Modal styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',

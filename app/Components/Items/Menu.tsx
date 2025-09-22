@@ -1,4 +1,4 @@
-import { getMenuItems, updateMenuItem } from '@/app/Api/Services/Products';
+import { getMenuItems, updateMenuItem, deleteMenu } from '@/app/Api/Services/Products';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Modal, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -97,20 +97,24 @@ const Menu = () => {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => confirmDelete(item),
+          onPress: async () => {
+            try {
+              const response = await deleteMenu(item.id);
+              if (response && response.status === 204) {
+                const updatedItems = menuItems.filter((i) => i.id !== item.id);
+                setMenuItems(updatedItems);
+                Alert.alert('Success', 'Menu item deleted');
+              } else {
+                throw new Error('Invalid response from server');
+              }
+            } catch (error) {
+              console.error('Delete error:', error);
+              Alert.alert('Error', 'Failed to delete menu item');
+            }
+          },
         },
       ]
     );
-  };
-
-  const confirmDelete = async (item) => {
-    try {
-      setMenuItems(menuItems.filter((i) => i.id !== item.id));
-      Alert.alert('Success', 'Menu item deleted');
-    } catch (error) {
-      console.error('Delete error:', error);
-      Alert.alert('Error', 'Failed to delete menu item');
-    }
   };
 
   const renderMenuItem = ({ item }) => (
@@ -419,7 +423,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     width: '90%',
     padding: 16,
-    maxHeight: '80%', // Ensure modal doesn't exceed screen height
+    maxHeight: '80%',
   },
   modalHeader: {
     flexDirection: 'row',
