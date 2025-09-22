@@ -72,6 +72,7 @@ const handleSaveTax = async () => {
   } catch (error) {
     Alert.alert('Error', 'Failed to add tax');
     console.error('Add Tax Error:', error);
+    console.log(error,"in taxes.tsx")
   } finally {
     setLoading(false);
   }

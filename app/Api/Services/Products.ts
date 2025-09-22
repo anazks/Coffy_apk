@@ -109,6 +109,7 @@ export const addModifierOption = async (data: any) => {
 
 export const AddTax = async (data: any) => {
         try {
+            console.log("tax data:",data)
             let res = await Axios.post('/menu/taxes/', data);
             return res;
         } catch (error) {
@@ -173,3 +174,27 @@ export const updateMenuItem = async(id:number,data:any)=>{
             return error
         }
 }
+
+export const deleteCategory = async (id: number) => {
+    try {
+        console.log(id, "category id for deletion");
+        let res = await Axios.delete(`/menu/categories/${id}/`);
+        console.log(res, "category deleted.....");
+        return res;
+    } catch (error) {
+        console.log(error);
+        return error;
+    }
+};
+
+export const deleteMenu = async (id: number) => {
+    try {
+        console.log(id, "menu id for deletion");
+        let res = await Axios.delete(`/menu/menu/${id}/`);
+        console.log(res, "category menu.....");
+        return res;
+    } catch (error) {
+        console.log(error);
+        return error;
+    }
+};
