@@ -1,6 +1,7 @@
-import { getmodifiers } from '@/app/Api/Services/Products';
+import { getmodifiers, updateModifier } from '@/app/Api/Services/Products';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
+
 import {
   ActivityIndicator,
   Alert,
@@ -75,16 +76,24 @@ export default function Modifier() {
     }
 
     try {
-      const updatedModifiers = modifiers.map(mod => 
-        mod.id === selectedModifier.id 
-          ? { ...mod, ...editForm, price: parseFloat(editForm.price) || 0 }
-          : mod
-      );
-      setModifiers(updatedModifiers);
-      
-      setEditModalVisible(false);
-      setSelectedModifier(null);
-      Alert.alert('Success', 'Modifier updated successfully');
+      const updatedData = {
+        ...editForm,
+        price: parseFloat(editForm.price) || 0
+      };
+      const response = await updateModifier(selectedModifier.id, updatedData);
+      if (response && response.status === 200) {
+        const updatedModifiers = modifiers.map(mod => 
+          mod.id === selectedModifier.id 
+            ? { ...mod, ...updatedData }
+            : mod
+        );
+        setModifiers(updatedModifiers);
+        setEditModalVisible(false);
+        setSelectedModifier(null);
+        Alert.alert('Success', 'Modifier updated successfully');
+      } else {
+        throw new Error('Invalid response from server');
+      }
     } catch (error) {
       console.error('Update error:', error);
       Alert.alert('Error', 'Failed to update modifier');
@@ -133,7 +142,7 @@ export default function Modifier() {
 
   const formatPrice = (price) => {
     if (!price && price !== 0) return 'Free';
-    return `$${parseFloat(price).toFixed(2)}`;
+    return `₹${parseFloat(price).toFixed(2)}`;
   };
 
   const renderModifierItem = ({ item }) => (
