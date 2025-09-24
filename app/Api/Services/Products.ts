@@ -129,6 +129,33 @@ export const getTaxes = async () => {
         }
 }
 
+export const deleteTax = async (id: number) => {
+    try {
+        console.log(id, "Taxes id for deletion");
+        let res = await Axios.delete(`/menu/taxes/${id}/`);
+        console.log("deletion response:",res);
+        return res;
+    } catch (error) {
+        console.log("error in tax deletion",error);
+        return error;
+    }
+};
+
+export const editTax = async (id: number,data: any) => {
+    try {
+        console.log(id, "Taxes id for editing");
+        console.log(data,"new tax data")
+        let res = await Axios.put(`/menu/taxes/${id}/`,data);
+        console.log("edited tax:",res);
+        return res;
+    } catch (error) {
+        console.log("error in tax editing",error);
+        return error;
+    }
+};
+
+
+
 export const CreateOrder = async(data:any)=>{
      try {
         console.log(data,"create order")
