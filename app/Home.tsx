@@ -32,6 +32,17 @@ export default function GetStartedScreen({ navigation }) {
     ]).start();
   }, []);
 
+  useEffect(() => {
+    try {
+      let access = localStorage.getItem('access');
+      if(access){
+        router.push('/(tabs)/Home');
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  },[])
+
   const handleGetStarted = () => {
     router.push('../Screens/Admin/Login');
   };

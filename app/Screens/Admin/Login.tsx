@@ -15,7 +15,16 @@ import {
 import { LoginUser } from '../../Api/Services/Auth';
 // Import your login API function
 // import { LoginUser } from '../../Api/Services/Auth';
-
+  useEffect(() => {
+    try {
+      let access = localStorage.getItem('access');
+      if(access){
+        router.push('/(tabs)/Home');
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  },[])
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

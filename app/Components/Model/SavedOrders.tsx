@@ -51,7 +51,7 @@ const CheckOut = async (checkoutData: {
     console.log(response, 'checkout response');
     return response;
   } catch (error) {
-    console.error('Checkout error:', error);
+    // console.error('Checkout error:', error);
     throw error;
   }
 };
@@ -97,7 +97,7 @@ export default function SavedOrders() {
       );
       setOrders(validOrders);
     } catch (err) {
-      console.error('Error fetching orders:', err);
+      // console.error('Error fetching orders:', err);
       setError('Failed to load orders. Please try again.');
     } finally {
       setLoading(false);
@@ -166,7 +166,7 @@ export default function SavedOrders() {
         Alert.alert('Error', response.message || 'Failed to save order');
       }
     } catch (error) {
-      console.error('Error saving order:', error);
+      // console.error('Error saving order:', error);
       Alert.alert('Error', 'Failed to save order. Please try again.');
     }
   };
@@ -203,8 +203,8 @@ export default function SavedOrders() {
         Alert.alert('Error', response?.message || 'Failed to process checkout');
       }
     } catch (error) {
-      console.error('Error processing checkout:', error);
-      Alert.alert('Error', 'Failed to process checkout. Please try again.');
+      // console.error('Error processing checkout:', error);
+      Alert.alert('Error', 'Please select payment method and status to proceed');
     }
   };
 

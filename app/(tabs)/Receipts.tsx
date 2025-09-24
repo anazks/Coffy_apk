@@ -1,6 +1,6 @@
-``
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useMemo, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Modal,
@@ -72,11 +72,7 @@ export default function Receipts() {
     })),
   });
 
-  useEffect(() => {
-    fetchOrders();
-  }, []);
-
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -87,12 +83,24 @@ export default function Receipts() {
         .map(mapOrderToReceipt);
       setReceipts(mappedReceipts);
     } catch (err) {
-      console.error('Error fetching orders:', err);
+      console.log('Error fetching orders:', err);
       setError('Failed to load receipts. Please try again.');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // Initial load
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
+
+  // Refresh data when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchOrders();
+    }, [fetchOrders])
+  );
 
   const fetchReceiptDetails = async (orderId: string) => {
     try {
@@ -103,7 +111,7 @@ export default function Receipts() {
       setSelectedReceiptData(response);
       setShowDetailModal(true);
     } catch (err) {
-      console.error('Error fetching receipt:', err);
+      console.log('Error fetching receipt:', err);
       Alert.alert('Error', 'Failed to load receipt details. Please try again.');
     } finally {
       setLoading(false);

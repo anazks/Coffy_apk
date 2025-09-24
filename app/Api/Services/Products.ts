@@ -10,9 +10,9 @@ export const addCateGory = async (data: any) => {
             console.log('Adding category with data:', newData);
             let res = await Axios.post('/menu/categories/', newData);
             console.log('Category added successfully:', res.data);
-            return res.data;
+            return res;
         } catch (error) {
-            console.error('Error adding category:', error);
+            console.log('Error adding category:', error);
             throw error;   
         }
 }
@@ -22,7 +22,7 @@ export const getCategories = async () => {
             let res = await Axios.get('/menu/categories/');
             return res.data;
         } catch (error) {
-            console.error('Error fetching categories:', error);
+            console.log('Error fetching categories:', error);
             throw error;   
         }
 }
@@ -33,7 +33,7 @@ export const addMenuItem = async (data: any) => {
             console.log(res,"menu added.....")
             return res;
         } catch (error) {
-            console.error('Error adding menu item:', error);
+            console.log('Error adding menu item:', error);
             throw error;   
         }
 }
@@ -43,7 +43,7 @@ export const getMenuItems = async () => {
             let res = await Axios.get('/menu/menu/');
             return res.data;
         } catch (error) {
-            console.error('Error fetching menu items:', error);
+            console.log('Error fetching menu items:', error);
             throw error; 
         }
 }
@@ -56,7 +56,7 @@ export const addModifier = async (data: any) => {
             console.log('Modifier added successfully:', res.data);
             return res.data;
         } catch (error) {
-            console.error('Error adding modifier:', error);
+            console.log('Error adding modifier:', error);
             throw error;   
         }
 }
@@ -79,7 +79,7 @@ export const getmodifiers = async () => {
             let res = await Axios.get('/menu/modifiers/');
             return res;
         } catch (error) {
-            console.error('Error fetching modifiers:', error);
+            console.log('Error fetching modifiers:', error);
             throw error;   
         }
 }
@@ -91,7 +91,7 @@ export const updateModifierOption = async (id: number, data: any) => {
             console.log('Modifier option updated successfully:', res.data);
             return res.data;
         } catch (error) {
-            console.error('Error updating modifier option:', error);
+            console.log('Error updating modifier option:', error);
             throw error;   
         }
 }
@@ -102,7 +102,7 @@ export const addModifierOption = async (data: any) => {
             console.log('Modifier option added successfully:', res.data);
             return res.data;
         } catch (error) {
-            console.error('Error adding modifier option:', error);
+            console.log('Error adding modifier option:', error);
             throw error;   
         }
 }
@@ -113,7 +113,7 @@ export const AddTax = async (data: any) => {
             let res = await Axios.post('/menu/taxes/', data);
             return res;
         } catch (error) {
-            console.error('Error adding tax:', error);
+            console.log('Error adding tax:', error);
             throw error;   
         }
 }
@@ -124,7 +124,7 @@ export const getTaxes = async () => {
             console.log(res,"--")
             return res;
         } catch (error) {
-            console.error('Error fetching taxes:', error);
+            console.log('Error fetching taxes:', error);
             throw error;   
         }
 }

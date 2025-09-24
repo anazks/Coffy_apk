@@ -1,11 +1,12 @@
 import React from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ListItems from '../Components/Items/ListItems';
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1
+    flex: 1,
+    backgroundColor: 'white',
   },
   scrollContainer: {
     padding: 5,
@@ -32,7 +33,6 @@ export default function Home() {
           keyboardShouldPersistTaps="handled"
         >
           <ListItems />
-          <Text style={styles.homeText}>Home Screen Content</Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

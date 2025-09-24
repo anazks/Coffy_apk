@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   Alert,
   Dimensions,
+  FlatList,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -52,9 +53,10 @@ const AddMenu = ({
   const [availableCategories, setAvailableCategories] = useState(categories);
   const [availableModifiers, setAvailableModifiers] = useState(modifiers);
   const [availableTaxes, setAvailableTaxes] = useState([]);
-  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showModifierDropdown, setShowModifierDropdown] = useState(false);
   const [showTaxDropdown, setShowTaxDropdown] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState(null);
 
   const colorPalette = [
     '#4F46E5', '#10B981', '#EF4444', '#F59E0B', 
@@ -131,9 +133,10 @@ const AddMenu = ({
       tax: '',
       taxName: ''
     });
-    setShowCategoryDropdown(false);
+    setShowCategoryModal(false);
     setShowModifierDropdown(false);
     setShowTaxDropdown(false);
+    setSelectedCategory(null);
   };
 
   const handleSaveMenu = async () => {
@@ -203,7 +206,8 @@ const AddMenu = ({
   const handleCategorySelect = (category) => {
     updateMenuForm('category', category.id.toString());
     updateMenuForm('categoryName', category.name);
-    setShowCategoryDropdown(false);
+    setSelectedCategory(category);
+    setShowCategoryModal(false);
   };
 
   const handlePortionSelect = (portion) => {
@@ -225,6 +229,70 @@ const AddMenu = ({
     updateMenuForm('taxName', tax.tax_name);
     setShowTaxDropdown(false);
   };
+const CategorySelectionModal = () => (
+  <Modal
+    visible={showCategoryModal}
+    animationType="slide"
+    transparent
+    onRequestClose={() => setShowCategoryModal(false)}
+    statusBarTranslucent={true}
+  >
+    <TouchableWithoutFeedback onPress={() => setShowCategoryModal(false)}>
+      <View style={styles.modalOverlay}>
+        <View style={styles.categoryModalContainer}>
+          <View style={styles.categoryModalHeader}>
+            <Text style={styles.categoryModalTitle}>Select Category</Text>
+            <TouchableOpacity 
+              style={styles.closeButton}
+              onPress={() => setShowCategoryModal(false)}
+            >
+              <Icon name="close" size={24} color="#333" />
+            </TouchableOpacity>
+          </View>
+          
+          {/* Make FlatList fill the available space */}
+          <View style={styles.categoryListContainer}>
+            <FlatList
+              data={availableCategories}
+              keyExtractor={(item) => item.id.toString()}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.categoryItem,
+                    selectedCategory?.id === item.id && styles.selectedCategoryItem
+                  ]}
+                  onPress={() => handleCategorySelect(item)}
+                >
+                  <Text style={[
+                    styles.categoryItemText,
+                    selectedCategory?.id === item.id && styles.selectedCategoryText
+                  ]}>
+                    {item.name}
+                  </Text>
+                  {selectedCategory?.id === item.id && (
+                    <Icon name="check" size={20} color="#4F46E5" />
+                  )}
+                </TouchableOpacity>
+              )}
+              showsVerticalScrollIndicator={true}
+              contentContainerStyle={styles.categoryListContent}
+              style={styles.categoryList}
+            />
+          </View>
+          
+          <View style={styles.categoryModalFooter}>
+            <TouchableOpacity 
+              style={styles.cancelCategoryButton}
+              onPress={() => setShowCategoryModal(false)}
+            >
+              <Text style={styles.cancelCategoryButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </TouchableWithoutFeedback>
+  </Modal>
+);
 
   const CustomDropdown = ({ 
     label, 
@@ -255,8 +323,13 @@ const AddMenu = ({
       </TouchableOpacity>
 
       {showDropdown && (
-        <View style={[styles.dropdownOptions, { zIndex: zIndex + 10 }]}>
-          <ScrollView style={styles.dropdownScroll} nestedScrollEnabled={true}>
+        <View style={[styles.dropdownOptions, { zIndex: zIndex + 100 }]}>
+          <ScrollView 
+            style={styles.dropdownScroll}
+            nestedScrollEnabled={true}
+            showsVerticalScrollIndicator={true}
+            contentContainerStyle={{ paddingBottom: 10 }}
+          >
             {options.map((option) => (
               <TouchableOpacity
                 key={option.id}
@@ -301,228 +374,270 @@ const AddMenu = ({
   };
 
   return (
-    <Modal 
-      visible={visible} 
-      animationType="slide" 
-      transparent
-      onRequestClose={handleClose}
-      statusBarTranslucent={true}
-    >
-      <TouchableWithoutFeedback onPress={() => {
-        Keyboard.dismiss();
-        setShowCategoryDropdown(false);
-        setShowModifierDropdown(false);
-        setShowTaxDropdown(false);
-      }}>
-        <View style={styles.modalOverlay}>
-          <KeyboardAvoidingView 
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.keyboardAvoidingView}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
-          >
-            <View style={styles.modalContainer}>
-              <View style={styles.modalContent}>
-                {/* Header */}
-                <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>New Menu Item</Text>
-                  <TouchableOpacity 
-                    style={styles.closeButton}
-                    onPress={handleClose}
-                  >
-                    <Icon name="close" size={24} color="#333" />
-                  </TouchableOpacity>
-                </View>
-                
-                {/* Scrollable Content */}
-                <ScrollView 
-                  style={styles.scrollView}
-                  contentContainerStyle={styles.scrollViewContent}
-                  showsVerticalScrollIndicator={true}
-                  keyboardShouldPersistTaps="handled"
-                  nestedScrollEnabled={true}
-                >
-                  <View style={styles.formGroup}>
-                    <Text style={styles.label}>Item Name *</Text>
-                    <TextInput
-                      style={styles.input}
-                      value={menuForm.name}
-                      onChangeText={(text) => updateMenuForm('name', text)}
-                      placeholder="Required"
-                      maxLength={255}
-                      autoFocus
-                    />
-                  </View>
-
-                  <CustomDropdown
-                    label="Category *"
-                    value={menuForm.category}
-                    displayValue={menuForm.categoryName}
-                    placeholder="Select Category"
-                    options={availableCategories}
-                    onSelect={handleCategorySelect}
-                    iconName="category"
-                    showDropdown={showCategoryDropdown}
-                    setShowDropdown={setShowCategoryDropdown}
-                    zIndex={70}
-                  />
-
-                  <View style={styles.formGroup}>
-                    <Text style={styles.label}>Price *</Text>
-                    <TextInput
-                      style={styles.input}
-                      value={menuForm.price}
-                      onChangeText={(text) => updateMenuForm('price', text)}
-                      placeholder="0.00"
-                      keyboardType="numeric"
-                    />
-                  </View>
-
-                  <CustomDropdown
-                    label="Tax"
-                    value={menuForm.tax}
-                    displayValue={menuForm.taxName}
-                    placeholder="Select Tax (Optional)"
-                    options={availableTaxes}
-                    onSelect={handleTaxSelect}
-                    iconName="receipt"
-                    showDropdown={showTaxDropdown}
-                    setShowDropdown={setShowTaxDropdown}
-                    zIndex={60}
-                  />
-
-                  <CustomDropdown
-                    label="Modifier"
-                    value={menuForm.modifier}
-                    displayValue={menuForm.modifierName}
-                    placeholder="Select Modifier (Optional)"
-                    options={availableModifiers}
-                    onSelect={handleModifierSelect}
-                    iconName="tune"
-                    showDropdown={showModifierDropdown}
-                    setShowDropdown={setShowModifierDropdown}
-                    zIndex={50}
-                  />
-
-                  <View style={[styles.formGroup, styles.switchContainer]}>
-                    <Text style={styles.label}>Status</Text>
-                    <Switch
-                      value={menuForm.status}
-                      onValueChange={(value) => updateMenuForm('status', value)}
-                      thumbColor={menuForm.status ? '#4F46E5' : '#ccc'}
-                      trackColor={{ false: '#ddd', true: '#E0E7FF' }}
-                    />
-                  </View>
-
-                  <View style={[styles.formGroup, styles.switchContainer]}>
-                    <Text style={styles.label}>Track Stock</Text>
-                    <Switch
-                      value={menuForm.stock_track}
-                      onValueChange={(value) => updateMenuForm('stock_track', value)}
-                      thumbColor={menuForm.stock_track ? '#4F46E5' : '#ccc'}
-                      trackColor={{ false: '#ddd', true: '#E0E7FF' }}
-                    />
-                  </View>
-
-                  {menuForm.stock_track && (
-                    <>
-                      <View style={styles.formGroup}>
-                        <Text style={styles.label}>Stock Quantity</Text>
-                        <TextInput
-                          style={styles.input}
-                          value={menuForm.stock}
-                          onChangeText={(text) => updateMenuForm('stock', text)}
-                          placeholder="Optional"
-                          keyboardType="numeric"
-                        />
-                      </View>
-
-                      <View style={styles.formGroup}>
-                        <Text style={styles.label}>Stock Alert Level</Text>
-                        <TextInput
-                          style={styles.input}
-                          value={menuForm.stock_alert}
-                          onChangeText={(text) => updateMenuForm('stock_alert', text)}
-                          placeholder="Optional"
-                          keyboardType="numeric"
-                        />
-                      </View>
-                    </>
-                  )}
-
-                  <View style={styles.formGroup}>
-                    <Text style={styles.label}>Description</Text>
-                    <TextInput
-                      style={[styles.input, styles.textArea]}
-                      value={menuForm.description}
-                      onChangeText={(text) => updateMenuForm('description', text)}
-                      placeholder="Optional (max 1000 characters)"
-                      multiline
-                      numberOfLines={3}
-                      maxLength={1000}
-                    />
-                  </View>
-
-                  <View style={styles.formGroup}>
-                    <Text style={styles.label}>Code</Text>
-                    <TextInput
-                      style={styles.input}
-                      value={menuForm.code}
-                      onChangeText={(text) => updateMenuForm('code', text)}
-                      placeholder="required (max 10 characters)"
-                      maxLength={10}
-                    />
-                  </View>
-
-                  <View style={styles.formGroup}>
-                    <Text style={styles.label}>Barcode</Text>
-                    <TextInput
-                      style={styles.input}
-                      value={menuForm.barcode}
-                      onChangeText={(text) => updateMenuForm('barcode', text)}
-                      placeholder="Optional (max 100 characters)"
-                      maxLength={100}
-                    />
-                  </View>
-
-                  <ColorPicker 
-                    selectedColor={menuForm.color}
-                    onColorSelect={(color) => updateMenuForm('color', color)}
-                  />
-                </ScrollView>
-
-                {/* Fixed Footer with Buttons */}
-                <View style={styles.modalFooter}>
-                  <View style={styles.buttonRow}>
+    <>
+      <Modal 
+        visible={visible} 
+        animationType="slide" 
+        transparent
+        onRequestClose={handleClose}
+        statusBarTranslucent={true}
+      >
+        <TouchableWithoutFeedback onPress={() => {
+          Keyboard.dismiss();
+          setShowModifierDropdown(false);
+          setShowTaxDropdown(false);
+        }}>
+          <View style={styles.modalOverlay}>
+            <KeyboardAvoidingView 
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              style={styles.keyboardAvoidingView}
+              keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
+            >
+              <View style={styles.modalContainer}>
+                <View style={styles.modalContent}>
+                  {/* Header */}
+                  <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>New Menu Item</Text>
                     <TouchableOpacity 
-                      style={styles.cancelButton}
+                      style={styles.closeButton}
                       onPress={handleClose}
-                      disabled={loading}
                     >
-                      <Text style={styles.cancelButtonText}>Cancel</Text>
+                      <Icon name="close" size={24} color="#333" />
                     </TouchableOpacity>
-                    <TouchableOpacity 
-                      style={[styles.saveButton, {backgroundColor: '#4F46E5'}]}
-                      onPress={handleSaveMenu}
-                      disabled={loading || !menuForm.name.trim() || !menuForm.price || !menuForm.category}
-                    >
-                      {loading ? (
-                        <Text style={styles.saveButtonText}>Saving...</Text>
-                      ) : (
-                        <Text style={styles.saveButtonText}>Save</Text>
-                      )}
-                    </TouchableOpacity>
+                  </View>
+                  
+                  {/* Scrollable Content */}
+                  <ScrollView 
+                    style={styles.scrollView}
+                    contentContainerStyle={styles.scrollViewContent}
+                    showsVerticalScrollIndicator={true}
+                    keyboardShouldPersistTaps="handled"
+                    nestedScrollEnabled={true}
+                  >
+                    <View style={styles.formGroup}>
+                      <Text style={styles.label}>Item Name *</Text>
+                      <TextInput
+                        style={styles.input}
+                        value={menuForm.name}
+                        onChangeText={(text) => updateMenuForm('name', text)}
+                        placeholder="Required"
+                        maxLength={255}
+                        autoFocus
+                      />
+                    </View>
+
+                    {/* Category Selection Button */}
+                    <View style={styles.formGroup}>
+                      <Text style={styles.label}>Category *</Text>
+                      <TouchableOpacity 
+                        style={[
+                          styles.dropdownButton,
+                          !menuForm.categoryName && styles.placeholderButton
+                        ]}
+                        onPress={() => setShowCategoryModal(true)}
+                      >
+                        <Text style={menuForm.categoryName ? styles.dropdownText : styles.dropdownPlaceholder}>
+                          {menuForm.categoryName || 'Select Category'}
+                        </Text>
+                        <Icon name="keyboard-arrow-down" size={20} color="#333" />
+                      </TouchableOpacity>
+                    </View>
+
+                    <View style={styles.formGroup}>
+                      <Text style={styles.label}>Price *</Text>
+                      <TextInput
+                        style={styles.input}
+                        value={menuForm.price}
+                        onChangeText={(text) => updateMenuForm('price', text)}
+                        placeholder="0.00"
+                        keyboardType="numeric"
+                      />
+                    </View>
+
+                    <CustomDropdown
+                      label="Tax"
+                      value={menuForm.tax}
+                      displayValue={menuForm.taxName}
+                      placeholder="Select Tax (Optional)"
+                      options={availableTaxes}
+                      onSelect={handleTaxSelect}
+                      iconName="receipt"
+                      showDropdown={showTaxDropdown}
+                      setShowDropdown={setShowTaxDropdown}
+                      zIndex={60}
+                    />
+
+                    <CustomDropdown
+                      label="Modifier"
+                      value={menuForm.modifier}
+                      displayValue={menuForm.modifierName}
+                      placeholder="Select Modifier (Optional)"
+                      options={availableModifiers}
+                      onSelect={handleModifierSelect}
+                      iconName="tune"
+                      showDropdown={showModifierDropdown}
+                      setShowDropdown={setShowModifierDropdown}
+                      zIndex={50}
+                    />
+
+                    <View style={[styles.formGroup, styles.switchContainer]}>
+                      <Text style={styles.label}>Status</Text>
+                      <Switch
+                        value={menuForm.status}
+                        onValueChange={(value) => updateMenuForm('status', value)}
+                        thumbColor={menuForm.status ? '#4F46E5' : '#ccc'}
+                        trackColor={{ false: '#ddd', true: '#E0E7FF' }}
+                      />
+                    </View>
+
+                    <View style={[styles.formGroup, styles.switchContainer]}>
+                      <Text style={styles.label}>Track Stock</Text>
+                      <Switch
+                        value={menuForm.stock_track}
+                        onValueChange={(value) => updateMenuForm('stock_track', value)}
+                        thumbColor={menuForm.stock_track ? '#4F46E5' : '#ccc'}
+                        trackColor={{ false: '#ddd', true: '#E0E7FF' }}
+                      />
+                    </View>
+
+                    {menuForm.stock_track && (
+                      <>
+                        <View style={styles.formGroup}>
+                          <Text style={styles.label}>Stock Quantity</Text>
+                          <TextInput
+                            style={styles.input}
+                            value={menuForm.stock}
+                            onChangeText={(text) => updateMenuForm('stock', text)}
+                            placeholder="Optional"
+                            keyboardType="numeric"
+                          />
+                        </View>
+
+                        <View style={styles.formGroup}>
+                          <Text style={styles.label}>Stock Alert Level</Text>
+                          <TextInput
+                            style={styles.input}
+                            value={menuForm.stock_alert}
+                            onChangeText={(text) => updateMenuForm('stock_alert', text)}
+                            placeholder="Optional"
+                            keyboardType="numeric"
+                          />
+                        </View>
+                      </>
+                    )}
+
+                    <View style={styles.formGroup}>
+                      <Text style={styles.label}>Description</Text>
+                      <TextInput
+                        style={[styles.input, styles.textArea]}
+                        value={menuForm.description}
+                        onChangeText={(text) => updateMenuForm('description', text)}
+                        placeholder="Optional (max 1000 characters)"
+                        multiline
+                        numberOfLines={3}
+                        maxLength={1000}
+                      />
+                    </View>
+
+                    <View style={styles.formGroup}>
+                      <Text style={styles.label}>Code</Text>
+                      <TextInput
+                        style={styles.input}
+                        value={menuForm.code}
+                        onChangeText={(text) => updateMenuForm('code', text)}
+                        placeholder="required (max 10 characters)"
+                        maxLength={10}
+                      />
+                    </View>
+
+                    <View style={styles.formGroup}>
+                      <Text style={styles.label}>Barcode</Text>
+                      <TextInput
+                        style={styles.input}
+                        value={menuForm.barcode}
+                        onChangeText={(text) => updateMenuForm('barcode', text)}
+                        placeholder="Optional (max 100 characters)"
+                        maxLength={100}
+                      />
+                    </View>
+
+                    <ColorPicker 
+                      selectedColor={menuForm.color}
+                      onColorSelect={(color) => updateMenuForm('color', color)}
+                    />
+                  </ScrollView>
+
+                  {/* Fixed Footer with Buttons */}
+                  <View style={styles.modalFooter}>
+                    <View style={styles.buttonRow}>
+                      <TouchableOpacity 
+                        style={styles.cancelButton}
+                        onPress={handleClose}
+                        disabled={loading}
+                      >
+                        <Text style={styles.cancelButtonText}>Cancel</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity 
+                        style={[styles.saveButton, {backgroundColor: '#4F46E5'}]}
+                        onPress={handleSaveMenu}
+                        disabled={loading || !menuForm.name.trim() || !menuForm.price || !menuForm.category}
+                      >
+                        {loading ? (
+                          <Text style={styles.saveButtonText}>Saving...</Text>
+                        ) : (
+                          <Text style={styles.saveButtonText}>Save</Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 </View>
               </View>
-            </View>
-          </KeyboardAvoidingView>
-        </View>
-      </TouchableWithoutFeedback>
-    </Modal>
+            </KeyboardAvoidingView>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* Category Selection Modal */}
+      <CategorySelectionModal />
+    </>
   );
 };
 
 const styles = StyleSheet.create({
+  categoryModalContainer: {
+  margin: 20,
+  backgroundColor: '#fff',
+  borderRadius: 12,
+  maxHeight: screenHeight * 0.7,
+  minHeight: 300,
+  width: '100%',
+  maxWidth: 500,
+  flex: 0, // Important: don't let it expand beyond maxHeight
+},
+
+// Add this new style:
+categoryListContainer: {
+  flex: 1, // Take up all available space between header and footer
+  minHeight: 200, // Ensure minimum scrollable area
+},
+
+categoryList: {
+  flex: 1,
+},
+
+// Add this new style:
+categoryListContent: {
+  paddingBottom: 10, // Add some padding at the bottom
+},
+
+categoryModalFooter: {
+  paddingHorizontal: 20,
+  paddingVertical: 16,
+  borderTopWidth: 1,
+  borderTopColor: '#eee',
+  backgroundColor: '#fff',
+  flexShrink: 0, // Prevent footer from shrinking
+},
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -539,10 +654,10 @@ const styles = StyleSheet.create({
   modalContainer: {
     width: '100%',
     maxWidth: 500,
-    height: screenHeight * 0.85, // Use 85% of screen height
+    height: screenHeight * 0.85,
     backgroundColor: '#fff',
     borderRadius: 12,
-    overflow: 'hidden',
+    overflow: 'visible',
   },
   modalContent: {
     flex: 1,
@@ -572,7 +687,7 @@ const styles = StyleSheet.create({
   },
   scrollViewContent: {
     paddingVertical: 20,
-    paddingBottom: 40, // Extra padding at bottom
+    paddingBottom: 100,
   },
   modalFooter: {
     paddingHorizontal: 20,
@@ -616,6 +731,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#fff',
   },
+  placeholderButton: {
+    borderColor: '#ddd',
+    backgroundColor: '#f9f9f9',
+  },
   dropdownText: {
     fontSize: 15,
     color: '#333',
@@ -634,15 +753,15 @@ const styles = StyleSheet.create({
     borderColor: '#ddd',
     borderRadius: 8,
     marginTop: 4,
-    maxHeight: 150,
+    maxHeight: screenHeight * 0.3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.2,
     shadowRadius: 4,
-    elevation: 5,
+    elevation: 10,
   },
   dropdownScroll: {
-    maxHeight: 150,
+    maxHeight: screenHeight * 0.3,
   },
   dropdownOption: {
     paddingHorizontal: 12,
@@ -704,6 +823,78 @@ const styles = StyleSheet.create({
   saveButtonText: {
     fontSize: 15,
     color: '#fff',
+    fontWeight: '500',
+  },
+  // Category Modal Styles
+  categoryModalContainer: {
+    margin: 20,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    maxHeight: screenHeight * 0.7,
+    minHeight: 300,
+    width: '100%',
+    maxWidth: 500,
+  },
+  categoryModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    backgroundColor: '#fff',
+  },
+  categoryModalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+  },
+  categoryList: {
+    paddingVertical: 10,
+    maxHeight: screenHeight * 0.5,
+  },
+  categoryItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  selectedCategoryItem: {
+    backgroundColor: '#f0f9ff',
+    borderLeftWidth: 4,
+    borderLeftColor: '#4F46E5',
+  },
+  categoryItemText: {
+    fontSize: 16,
+    color: '#333',
+    flex: 1,
+  },
+  selectedCategoryText: {
+    color: '#4F46E5',
+    fontWeight: '600',
+  },
+  categoryModalFooter: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    backgroundColor: '#fff',
+  },
+  cancelCategoryButton: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    backgroundColor: '#fff',
+  },
+  cancelCategoryButtonText: {
+    fontSize: 15,
+    color: '#333',
     fontWeight: '500',
   },
 });

@@ -1,17 +1,17 @@
 import { useState } from 'react';
 import {
-    Alert,
-    Keyboard,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    View
+  Alert,
+  Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { addCateGory } from '../../Api/Services/Products';
@@ -70,7 +70,7 @@ const AddCategory = ({
         color: categoryForm.color
       });
 
-      if (response.success) {
+      if (response.status === 201) {
         Alert.alert('Success', 'Category created successfully');
         resetForm();
         onCategoryAdded?.();
