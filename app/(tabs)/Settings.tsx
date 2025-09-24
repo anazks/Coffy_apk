@@ -19,7 +19,7 @@ export default function Taxes() {
     { id: 'Taxes', label: 'Taxes', icon: 'calculator-outline' },
     { id: 'Profile', label: 'Profile', icon: 'person-outline' },
     { id: 'Printer', label: 'Printer', icon: 'print-outline' },
-    { id: 'Branch', label: 'Branch', icon: 'storefront-outline' },
+    // { id: 'Branch', label: 'Branch', icon: 'storefront-outline' },
   ];
 
   const renderContent = () => {
@@ -27,7 +27,7 @@ export default function Taxes() {
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 300,
-        useNativeDriver: true,
+        useNativeDriver: true,  
       }),
       Animated.timing(slideAnim, {
         toValue: 0,
@@ -43,8 +43,8 @@ export default function Taxes() {
         return <Profile />;
       case 'Printer':
         return <Printer />;
-      case 'Branch':
-        return <Branch />;
+      // case 'Branch':
+      //   return <Branch />;
       default:
         return <TaxSettings />;
     }
