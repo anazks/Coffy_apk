@@ -1,7 +1,6 @@
-import { getmodifiers, updateModifier } from '@/app/Api/Services/Products';
+import { addModifierOptions, getmodifiers, updateModifier } from '@/app/Api/Services/Products';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useState } from 'react';
-
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -21,11 +20,17 @@ export default function Modifier() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
+  const [addOptionModalVisible, setAddOptionModalVisible] = useState(false);
   const [selectedModifier, setSelectedModifier] = useState(null);
+  const [expandedModifiers, setExpandedModifiers] = useState({}); // State to track expanded modifiers
   const [editForm, setEditForm] = useState({
     name: '',
     description: '',
     active: true,
+    price: ''
+  });
+  const [optionForm, setOptionForm] = useState({
+    name: '',
     price: ''
   });
 
@@ -37,6 +42,7 @@ export default function Modifier() {
     try {
       setLoading(true);
       const response = await getmodifiers();
+      console.log('Fetched modifiers:', response);
       if (response && response.status === 200) {
         setModifiers(response.data || []);
       } else if (response && Array.isArray(response)) {
@@ -45,7 +51,7 @@ export default function Modifier() {
         Alert.alert('Error', 'Failed to load modifiers');
       }
     } catch (error) {
-      console.error('Modifiers fetch error:', error);
+      console.log('Modifiers fetch error:', error);
       Alert.alert('Error', 'Something went wrong while fetching modifiers');
     } finally {
       setLoading(false);
@@ -95,7 +101,7 @@ export default function Modifier() {
         throw new Error('Invalid response from server');
       }
     } catch (error) {
-      console.error('Update error:', error);
+      console.log('Update error:', error);
       Alert.alert('Error', 'Failed to update modifier');
     }
   };
@@ -119,25 +125,67 @@ export default function Modifier() {
     try {
       const updatedModifiers = modifiers.filter(mod => mod.id !== modifier.id);
       setModifiers(updatedModifiers);
+      setExpandedModifiers(prev => {
+        const newExpanded = { ...prev };
+        delete newExpanded[modifier.id];
+        return newExpanded;
+      });
       Alert.alert('Success', 'Modifier deleted');
     } catch (error) {
-      console.error('Delete error:', error);
+      console.log('Delete error:', error);
       Alert.alert('Error', 'Failed to delete modifier');
     }
   };
 
-  const toggleStatus = async (modifier) => {
-    try {
-      const updatedModifiers = modifiers.map(mod => 
-        mod.id === modifier.id 
-          ? { ...mod, active: !mod.active }
-          : mod
-      );
-      setModifiers(updatedModifiers);
-    } catch (error) {
-      console.error('Status toggle error:', error);
-      Alert.alert('Error', 'Failed to update status');
+  const handleAddOption = (modifier) => {
+    setSelectedModifier(modifier);
+    setOptionForm({ name: '', price: '' });
+    setAddOptionModalVisible(true);
+  };
+
+  const handleSaveOption = async () => {
+    if (!optionForm.name.trim()) {
+      Alert.alert('Error', 'Option name is required');
+      return;
     }
+    if (optionForm.name.length > 20) {
+      Alert.alert('Error', 'Option name must be 20 characters or less');
+      return;
+    }
+
+    try {
+      const optionData = {
+        name: optionForm.name.trim(),
+        price: parseFloat(optionForm.price) || 0,
+        modifierId: selectedModifier.id
+      };
+      const response = await addModifierOptions(optionData);
+      if (response && response.status === 201) {
+        const newOption = response.data || { ...optionData, id: Math.random() };
+        const updatedModifiers = modifiers.map(mod => 
+          mod.id === selectedModifier.id 
+            ? { ...mod, options: [...(mod.options || []), newOption] }
+            : mod
+        );
+        setModifiers(updatedModifiers);
+        setAddOptionModalVisible(false);
+        setOptionForm({ name: '', price: '' });
+        setSelectedModifier(null);
+        Alert.alert('Success', 'Modifier option added successfully');
+      } else {
+        throw new Error('Invalid response from server');
+      }
+    } catch (error) {
+      console.error('Add option error:', error);
+      Alert.alert('Error', 'Failed to add modifier option');
+    }
+  };
+
+  const toggleExpand = (modifierId) => {
+    setExpandedModifiers(prev => ({
+      ...prev,
+      [modifierId]: !prev[modifierId]
+    }));
   };
 
   const formatPrice = (price) => {
@@ -147,29 +195,39 @@ export default function Modifier() {
 
   const renderModifierItem = ({ item }) => (
     <View style={styles.modifierCard}>
-      <View style={styles.cardHeader}>
+      <TouchableOpacity onPress={() => toggleExpand(item.id)} style={styles.cardHeader}>
         <View style={styles.modifierInfo}>
-          <Text style={styles.modifierName}>{item.name}</Text>
+          <View style={styles.modifierHeader}>
+            <Text style={styles.modifierName}>{item.name}</Text>
+            <Ionicons 
+              name={expandedModifiers[item.id] ? 'chevron-up' : 'chevron-down'} 
+              size={20} 
+              color="#666" 
+            />
+          </View>
           {item.description && (
             <Text style={styles.description} numberOfLines={2}>{item.description}</Text>
           )}
           <Text style={styles.price}>{formatPrice(item.price)}</Text>
         </View>
         <View style={[styles.statusDot, item.active ? styles.activeDot : styles.inactiveDot]} />
-      </View>
+      </TouchableOpacity>
+
+      {expandedModifiers[item.id] && item.options && item.options.length > 0 && (
+        <View style={styles.optionsContainer}>
+          <Text style={styles.optionsLabel}>Options</Text>
+          <View style={styles.optionsList}>
+            {item.options.map(option => (
+              <View key={option.id} style={styles.optionItem}>
+                <Text style={styles.optionName}>{option.name}</Text>
+                <Text style={styles.optionPrice}>{formatPrice(option.price)}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
 
       <View style={styles.actions}>
-        <TouchableOpacity
-          style={styles.actionBtn}
-          onPress={() => toggleStatus(item)}
-        >
-          <Ionicons 
-            name={item.active ? "pause" : "play"} 
-            size={16} 
-            color="#666" 
-          />
-        </TouchableOpacity>
-
         <TouchableOpacity
           style={styles.actionBtn}
           onPress={() => handleEdit(item)}
@@ -182,6 +240,13 @@ export default function Modifier() {
           onPress={() => handleDelete(item)}
         >
           <Ionicons name="trash" size={16} color="#e74c3c" />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.actionBtn}
+          onPress={() => handleAddOption(item)}
+        >
+          <Ionicons name="add-circle" size={16} color="#007AFF" />
         </TouchableOpacity>
       </View>
     </View>
@@ -222,6 +287,7 @@ export default function Modifier() {
         ListEmptyComponent={renderEmptyState}
       />
 
+      {/* Edit Modifier Modal */}
       <Modal
         visible={editModalVisible}
         animationType="slide"
@@ -291,6 +357,60 @@ export default function Modifier() {
           </View>
         </View>
       </Modal>
+
+      {/* Add Modifier Option Modal */}
+      <Modal
+        visible={addOptionModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setAddOptionModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modal}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Add Modifier Option</Text>
+              <TouchableOpacity onPress={() => setAddOptionModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalBody}>
+              <Text style={styles.label}>Name *</Text>
+              <TextInput
+                style={styles.input}
+                value={optionForm.name}
+                onChangeText={(text) => setOptionForm({ ...optionForm, name: text })}
+                placeholder="Option name"
+                maxLength={20}
+              />
+
+              <Text style={styles.label}>Price</Text>
+              <TextInput
+                style={styles.input}
+                value={optionForm.price}
+                onChangeText={(text) => setOptionForm({ ...optionForm, price: text })}
+                placeholder="0.00"
+                keyboardType="decimal-pad"
+              />
+            </View>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.btn, styles.cancelBtn]}
+                onPress={() => setAddOptionModalVisible(false)}
+              >
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.btn, styles.saveBtn]}
+                onPress={handleSaveOption}
+              >
+                <Text style={styles.saveText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -345,16 +465,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 12,
   },
   modifierInfo: {
     flex: 1,
   },
+  modifierHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
   modifierName: {
     fontSize: 18,
-    fontWeight: '500',
+    fontWeight: '600',
     color: '#333',
-    marginBottom: 4,
   },
   description: {
     fontSize: 14,
@@ -366,6 +490,40 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#27ae60',
+    marginBottom: 8,
+  },
+  optionsContainer: {
+    marginTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    paddingTop: 8,
+  },
+  optionsLabel: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#333',
+    marginBottom: 8,
+  },
+  optionsList: {
+    gap: 8,
+  },
+  optionItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#f8f8f8',
+    padding: 10,
+    borderRadius: 8,
+  },
+  optionName: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
+  },
+  optionPrice: {
+    fontSize: 14,
+    color: '#27ae60',
+    fontWeight: '500',
   },
   statusDot: {
     width: 10,
@@ -383,6 +541,7 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
+    marginTop: 12,
   },
   actionBtn: {
     padding: 8,
@@ -401,7 +560,6 @@ const styles = StyleSheet.create({
     color: '#999',
     marginTop: 12,
   },
-  // Modal styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',

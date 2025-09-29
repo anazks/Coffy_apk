@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Animated,
+  Dimensions,
   FlatList,
   Modal,
   Pressable,
@@ -15,6 +17,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { getMenuItems } from '../../Api/Services/Products';
 import AddMenu from '../Model/AddMenu';
 import Nav from '../NavBar/Nav';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface Product {
   id: string;
@@ -38,44 +42,181 @@ interface ListItemsProps {
   searchQuery?: string;
 }
 
-const FILTER_OPTIONS = [
-  { label: 'All Items', value: 'all' },
-  { label: 'Favorites', value: 'favorites' },
-  { label: 'Discounts', value: 'discounts' },
-  { label: 'Veg', value: 'veg' },
-];
-
-const DIET_COLORS: { [key: string]: string } = {
-  Veg: '#22C55E',
-  'Non-Veg': '#EF4444',
-  Egg: '#F59E0B',
+const DIET_COLORS = {
+  Veg: '#10B981',
+  'Non-Veg': '#F87171',
+  Egg: '#FBBF24',
 };
 
+// Dynamic filter options based on unique category names
+const getFilterOptions = (products: Product[]) => {
+  const uniqueCategories = Array.from(new Set(products.map((product) => product.diet))).map((category) => ({
+    label: category,
+    value: category.toLowerCase(),
+    icon: category === 'Veg' ? 'leaf-outline' : category === 'Non-Veg' ? 'fish-outline' : 'egg-outline',
+  }));
+
+  return [
+    { label: 'All Items', value: 'all', icon: 'grid-outline' },
+    { label: 'Favorites', value: 'favorites', icon: 'heart-outline' },
+    { label: 'Discounts', value: 'discounts', icon: 'pricetag-outline' },
+    ...uniqueCategories,
+  ];
+};
+
+const ProductItem = React.memo(({ 
+  item, 
+  quantity, 
+  onPress, 
+  onQuantityDecrease, 
+  onQuantityIncrease 
+}) => {
+  const [scaleAnim] = useState(new Animated.Value(1));
+  const isSelected = quantity > 0;
+
+  const handlePress = useCallback(() => {
+    Animated.sequence([
+      Animated.timing(scaleAnim, {
+        toValue: 0.95,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
+    onPress(item);
+  }, [item, onPress, scaleAnim]);
+
+  return (
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+      <TouchableOpacity
+        style={[styles.productItem, isSelected && styles.selectedProductItem]}
+        activeOpacity={0.8}
+        onPress={handlePress}
+        accessible
+        accessibilityLabel={`Select ${item.name}, ${item.diet}, ${item.portion}`}
+      >
+        {isSelected && <View style={styles.selectedOverlay} />}
+        <View style={[styles.colorStrip, { backgroundColor: item.color }]}>
+          {isSelected && <View style={[styles.colorGlow, { backgroundColor: item.color }]} />}
+        </View>
+
+        <View style={styles.productInfo}>
+          <View style={styles.productHeader}>
+            <View style={styles.productDetails}>
+              <Text style={styles.productName} numberOfLines={2}>
+                {item.name}
+              </Text>
+              <View style={styles.subInfoContainer}>
+                <Text style={styles.productSubInfo}>
+                  {item.diet} • {item.portion}
+                </Text>
+              </View>
+            </View>
+            
+            <View style={styles.badges}>
+              {item.isVeg && (
+                <View style={styles.vegBadge}>
+                  <View style={styles.vegDot} />
+                </View>
+              )}
+              {item.isFavorite && (
+                <View style={styles.heartContainer}>
+                  <Ionicons name="heart" size={18} color="#FF6B6B" />
+                </View>
+              )}
+              {isSelected && (
+                <View style={styles.selectedBadge}>
+                  <Ionicons name="checkmark-circle" size={22} color="#10B981" />
+                </View>
+              )}
+            </View>
+          </View>
+
+          <View style={styles.priceRow}>
+            <View style={styles.priceContainer}>
+              {item.hasDiscount && item.discountPrice ? (
+                <View style={styles.discountPriceContainer}>
+                  <Text style={styles.discountPrice}>₹{item.discountPrice}</Text>
+                  <Text style={styles.originalPrice}>₹{item.price}</Text>
+                  <View style={styles.discountBadge}>
+                    <Text style={styles.discountText}>
+                      {Math.round(((item.price - item.discountPrice) / item.price) * 100)}% OFF
+                    </Text>
+                  </View>
+                </View>
+              ) : (
+                <Text style={styles.price}>₹{item.price}</Text>
+              )}
+            </View>
+
+            {isSelected && (
+              <View style={styles.quantityContainer}>
+                <TouchableOpacity
+                  style={styles.quantityButton}
+                  onPress={(e) => onQuantityDecrease(item.id, e)}
+                  activeOpacity={0.7}
+                  accessible
+                  accessibilityLabel={`Decrease quantity of ${item.name}`}
+                >
+                  <Ionicons name="remove" size={18} color="#6366F1" />
+                </TouchableOpacity>
+                
+                <View style={styles.quantityDisplay}>
+                  <Text style={styles.quantityText}>{quantity}</Text>
+                </View>
+                
+                <TouchableOpacity
+                  style={styles.quantityButton}
+                  onPress={(e) => onQuantityIncrease(item.id, e)}
+                  activeOpacity={0.7}
+                  accessible
+                  accessibilityLabel={`Increase quantity of ${item.name}`}
+                >
+                  <Ionicons name="add" size={18} color="#6366F1" />
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+});
+
 export default function ListItems({ products: initialProducts = [], searchQuery = '' }: ListItemsProps) {
-  const [products, setProducts] = useState<Product[]>(initialProducts);
+  const [products, setProducts] = useState(initialProducts);
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [showDropdown, setShowDropdown] = useState(false);
   const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
-  const [productQuantities, setProductQuantities] = useState<{ [key: string]: number }>({});
+  const [productQuantities, setProductQuantities] = useState({});
   const [showAddMenuModal, setShowAddMenuModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+  const searchInputRef = useRef<TextInput>(null);
+
+  // Dynamic filter options based on products
+  const FILTER_OPTIONS = useMemo(() => getFilterOptions(products), [products]);
 
   useEffect(() => {
     setLocalSearchQuery(searchQuery);
   }, [searchQuery]);
 
-  async function fetchProducts() {
+  const fetchProducts = useCallback(async () => {
     try {
       setRefreshing(true);
       const response = await getMenuItems();
       console.log('Menu items fetched:', response);
 
-      const mappedProducts: Product[] = response.map((item: any) => ({
+      const mappedProducts = response.map((item) => ({
         id: item.id?.toString() || `item-${Math.random().toString(36).substr(2, 9)}`,
         name: item.name || 'Unnamed Item',
         price: parseFloat(item.price) || 0,
-        color: item.color || DIET_COLORS[item.diet] || '#3B82F6',
-        diet: item.diet || 'Veg',
+        color: item.color || DIET_COLORS[item.diet] || '#6366F1',
+        diet: item.category_name || 'Veg',
         portion: item.portion || 'Small',
         isFavorite: item.is_favorite || false,
         hasDiscount: item.discountPrice ? true : false,
@@ -85,38 +226,34 @@ export default function ListItems({ products: initialProducts = [], searchQuery 
 
       setProducts(mappedProducts);
     } catch (error) {
-      console.error('Error fetching menu items:', error);
+      console.log('Error fetching menu items:', error);
     } finally {
       setRefreshing(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
     fetchProducts();
-  }, []);
+  }, [fetchProducts]);
 
-  const handleMenuAdded = () => {
+  const handleMenuAdded = useCallback(() => {
     fetchProducts();
     setShowAddMenuModal(false);
-  };
+  }, [fetchProducts]);
 
-  const filterProducts = () => {
+  const filteredProducts = useMemo(() => {
     let filtered = products;
 
-    switch (selectedFilter) {
-      case 'favorites':
-        filtered = filtered.filter((product) => product.isFavorite);
-        break;
-      case 'discounts':
-        filtered = filtered.filter((product) => product.hasDiscount);
-        break;
-      case 'veg':
-        filtered = filtered.filter((product) => product.isVeg);
-        break;
-      default:
-        break;
+    // Filter by selected filter (including category_name)
+    if (selectedFilter === 'favorites') {
+      filtered = filtered.filter((product) => product.isFavorite);
+    } else if (selectedFilter === 'discounts') {
+      filtered = filtered.filter((product) => product.hasDiscount);
+    } else if (selectedFilter !== 'all') {
+      filtered = filtered.filter((product) => product.diet.toLowerCase() === selectedFilter.toLowerCase());
     }
 
+    // Apply search query filter
     if (localSearchQuery) {
       filtered = filtered.filter((product) =>
         product.name.toLowerCase().includes(localSearchQuery.toLowerCase())
@@ -124,16 +261,16 @@ export default function ListItems({ products: initialProducts = [], searchQuery 
     }
 
     return filtered;
-  };
+  }, [products, selectedFilter, localSearchQuery]);
 
-  const handleProductPress = (product: Product) => {
+  const handleProductPress = useCallback((product) => {
     setProductQuantities((prev) => ({
       ...prev,
       [product.id]: (prev[product.id] || 0) + 1,
     }));
-  };
+  }, []);
 
-  const handleQuantityDecrease = (productId: string, event: any) => {
+  const handleQuantityDecrease = useCallback((productId, event) => {
     event.stopPropagation();
     setProductQuantities((prev) => {
       const currentQuantity = prev[productId] || 0;
@@ -146,27 +283,31 @@ export default function ListItems({ products: initialProducts = [], searchQuery 
         [productId]: currentQuantity - 1,
       };
     });
-  };
+  }, []);
 
-  const handleQuantityIncrease = (productId: string, event: any) => {
+  const handleQuantityIncrease = useCallback((productId, event) => {
     event.stopPropagation();
     setProductQuantities((prev) => ({
       ...prev,
       [productId]: (prev[productId] || 0) + 1,
     }));
-  };
+  }, []);
 
-  const getSelectedProducts = (): ProductWithQuantity[] => {
+  const handleClearOrder = useCallback(() => {
+    setProductQuantities({});
+  }, []);
+
+  const getSelectedProducts = useCallback(() => {
     return Object.entries(productQuantities)
       .filter(([_, quantity]) => quantity > 0)
       .map(([productId, quantity]) => {
         const product = products.find((p) => p.id === productId);
         return product ? { ...product, quantity } : null;
       })
-      .filter(Boolean) as ProductWithQuantity[];
-  };
+      .filter(Boolean);
+  }, [productQuantities, products]);
 
-  const calculateTotalAmount = () => {
+  const calculateTotalAmount = useCallback(() => {
     return Object.entries(productQuantities).reduce((total, [productId, quantity]) => {
       const product = products.find((p) => p.id === productId);
       if (!product) return total;
@@ -174,120 +315,69 @@ export default function ListItems({ products: initialProducts = [], searchQuery 
       const price = product.hasDiscount && product.discountPrice ? product.discountPrice : product.price;
       return total + price * quantity;
     }, 0);
-  };
+  }, [productQuantities, products]);
 
-  const getTotalItemCount = () => {
+  const getTotalItemCount = useCallback(() => {
     return Object.values(productQuantities).reduce((total, quantity) => total + quantity, 0);
-  };
+  }, [productQuantities]);
 
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     console.log('Saving selected products:', getSelectedProducts());
-  };
+  }, [getSelectedProducts]);
 
-  const handleCharge = () => {
+  const handleCharge = useCallback(() => {
     console.log('Charging for products:', getSelectedProducts());
     console.log('Total amount:', calculateTotalAmount());
-  };
+  }, [getSelectedProducts, calculateTotalAmount]);
 
-  const handleAddUser = () => {
+  const handleAddUser = useCallback(() => {
     console.log('Adding new user');
-  };
+  }, []);
 
-  const handleOrdersPress = () => {
+  const handleOrdersPress = useCallback(() => {
     console.log('View orders pressed');
     console.log('Current orders:', getSelectedProducts());
-  };
+  }, [getSelectedProducts]);
 
-  const renderProduct = ({ item }: { item: Product }) => {
-    const quantity = productQuantities[item.id] || 0;
-    const isSelected = quantity > 0;
+  const handleSearchContainerPress = useCallback(() => {
+    setIsSearchExpanded(true);
+    searchInputRef.current?.focus();
+  }, []);
 
-    return (
-      <TouchableOpacity
-        style={[styles.productItem, isSelected && styles.selectedProductItem]}
-        activeOpacity={0.7}
-        onPress={() => handleProductPress(item)}
-        accessible
-        accessibilityLabel={`Select ${item.name}, ${item.diet}, ${item.portion}`}
-      >
-        <View style={[styles.colorStrip, { backgroundColor: item.color }]} />
-        <View style={styles.productInfo}>
-          <View style={styles.productHeader}>
-            <View style={styles.productDetails}>
-              <Text style={styles.productName}>{item.name}</Text>
-              <Text style={styles.productSubInfo}>
-                {item.diet} • {item.portion}
-              </Text>
-            </View>
-            <View style={styles.badges}>
-              {item.isVeg && (
-                <View style={[styles.badge, styles.vegBadge]}>
-                  <View style={styles.vegDot} />
-                </View>
-              )}
-              {item.isFavorite && (
-                <Ionicons name="heart" size={16} color="#EF4444" />
-              )}
-              {isSelected && (
-                <View style={styles.selectedBadge}>
-                  <Ionicons name="checkmark-circle" size={20} color="#2563EB" />
-                </View>
-              )}
-            </View>
-          </View>
-          <View style={styles.priceContainer}>
-            {item.hasDiscount && item.discountPrice ? (
-              <View style={styles.discountPriceRow}>
-                <Text style={styles.discountPrice}>₹{item.discountPrice}</Text>
-                <Text style={styles.originalPrice}>₹{item.price}</Text>
-                <View style={styles.discountBadge}>
-                  <Text style={styles.discountText}>
-                    {Math.round(((item.price - item.discountPrice) / item.price) * 100)}% OFF
-                  </Text>
-                </View>
-              </View>
-            ) : (
-              <Text style={styles.price}>₹{item.price}</Text>
-            )}
-            {isSelected && (
-              <View style={styles.quantityContainer}>
-                <TouchableOpacity
-                  style={styles.quantityButton}
-                  onPress={(e) => handleQuantityDecrease(item.id, e)}
-                  activeOpacity={0.7}
-                  accessible
-                  accessibilityLabel={`Decrease quantity of ${item.name}`}
-                >
-                  <Ionicons name="remove" size={16} color="#2563EB" />
-                </TouchableOpacity>
-                <View style={styles.quantityDisplay}>
-                  <Text style={styles.quantityText}>{quantity}</Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.quantityButton}
-                  onPress={(e) => handleQuantityIncrease(item.id, e)}
-                  activeOpacity={0.7}
-                  accessible
-                  accessibilityLabel={`Increase quantity of ${item.name}`}
-                >
-                  <Ionicons name="add" size={16} color="#2563EB" />
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        </View>
-      </TouchableOpacity>
-    );
-  };
+  const handleCancelSearch = useCallback(() => {
+    setIsSearchExpanded(false);
+    searchInputRef.current?.blur();
+  }, []);
 
-  const renderEmptyState = () => (
+  const handleClearSearch = useCallback(() => {
+    setLocalSearchQuery('');
+    setIsSearchExpanded(false);
+    searchInputRef.current?.blur();
+  }, []);
+
+  const renderProduct = useCallback(({ item }) => (
+    <ProductItem
+      item={item}
+      quantity={productQuantities[item.id] || 0}
+      onPress={handleProductPress}
+      onQuantityDecrease={handleQuantityDecrease}
+      onQuantityIncrease={handleQuantityIncrease}
+    />
+  ), [productQuantities, handleProductPress, handleQuantityDecrease, handleQuantityIncrease]);
+
+  const renderEmptyState = useCallback(() => (
     <View style={styles.emptyContainer}>
-      <Ionicons name="sad-outline" size={48} color="#6B7280" />
-      <Text style={styles.emptyText}>No items found</Text>
+      <View style={styles.emptyIconContainer}>
+        <Ionicons name="restaurant-outline" size={64} color="#D1D5DB" />
+      </View>
+      <Text style={styles.emptyTitle}>No items found</Text>
+      <Text style={styles.emptySubtitle}>
+        Try adjusting your search or filter criteria
+      </Text>
     </View>
-  );
+  ), []);
 
-  const selectedFilterLabel = FILTER_OPTIONS.find((option) => option.value === selectedFilter)?.label || 'All Items';
+  const selectedFilterOption = FILTER_OPTIONS.find((option) => option.value === selectedFilter);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -304,23 +394,39 @@ export default function ListItems({ products: initialProducts = [], searchQuery 
           style={styles.nav}
         />
       </View>
+
       <View style={styles.contentContainer}>
         <View style={styles.header}>
+          {!isSearchExpanded && (
+            <>
+              <TouchableOpacity
+                style={styles.filterButton}
+                onPress={() => setShowDropdown(true)}
+                activeOpacity={0.8}
+                accessible
+                accessibilityLabel="Open filter options"
+              >
+                <Ionicons 
+                  name={selectedFilterOption?.icon || 'grid-outline'} 
+                  size={20} 
+                  color="#6366F1" 
+                />
+                <Text style={styles.filterText}>{selectedFilterOption?.label || 'All Items'}</Text>
+                <Ionicons name="chevron-down" size={18} color="#6B7280" />
+              </TouchableOpacity>
+            </>
+          )}
+
           <TouchableOpacity
-            style={styles.dropdown}
-            onPress={() => setShowDropdown(true)}
-            activeOpacity={0.7}
-            accessible
-            accessibilityLabel="Open filter options"
+            style={[styles.searchContainer, isSearchExpanded && styles.searchContainerExpanded]}
+            onPress={handleSearchContainerPress}
+            activeOpacity={1}
           >
-            <Text style={styles.dropdownText}>{selectedFilterLabel}</Text>
-            <Ionicons name="chevron-down" size={20} color="#6B7280" />
-          </TouchableOpacity>
-          <View style={styles.searchContainer}>
-            <Ionicons name="search" size={20} color="#6B7280" style={styles.searchIcon} />
+            <Ionicons name="search" size={20} color="#9CA3AF" style={styles.searchIcon} />
             <TextInput
-              style={styles.searchInput}
-              placeholder="Search items..."
+              ref={searchInputRef}
+              style={[styles.searchInput, isSearchExpanded && styles.searchInputExpanded]}
+              placeholder="Search delicious items..."
               value={localSearchQuery}
               onChangeText={setLocalSearchQuery}
               placeholderTextColor="#9CA3AF"
@@ -330,37 +436,81 @@ export default function ListItems({ products: initialProducts = [], searchQuery 
             {localSearchQuery.length > 0 && (
               <TouchableOpacity
                 style={styles.clearButton}
-                onPress={() => setLocalSearchQuery('')}
+                onPress={handleClearSearch}
                 accessible
                 accessibilityLabel="Clear search"
               >
-                <Ionicons name="close-circle" size={20} color="#6B7280" />
+                <Ionicons name="close-circle" size={20} color="#9CA3AF" />
               </TouchableOpacity>
             )}
-          </View>
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={() => setShowAddMenuModal(true)}
-            activeOpacity={0.7}
-            accessible
-            accessibilityLabel="Add new menu item"
-          >
-            <Ionicons name="add" size={24} color="#FFFFFF" />
           </TouchableOpacity>
+
+          {isSearchExpanded && (
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={handleCancelSearch}
+              activeOpacity={0.8}
+              accessible
+              accessibilityLabel="Cancel search"
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          )}
+
+          {!isSearchExpanded && (
+            <>
+              {getTotalItemCount() > 0 && (
+                <TouchableOpacity
+                  style={styles.clearOrderButton}
+                  onPress={handleClearOrder}
+                  activeOpacity={0.8}
+                  accessible
+                  accessibilityLabel="Clear selected order"
+                >
+                  <Ionicons name="trash-outline" size={24} color="#FFFFFF" />
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity
+                style={styles.addButton}
+                onPress={() => setShowAddMenuModal(true)}
+                activeOpacity={0.8}
+                accessible
+                accessibilityLabel="Add new menu item"
+              >
+                <Ionicons name="add" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+            </>
+          )}
         </View>
+
         <FlatList
-          data={filterProducts()}
+          data={filteredProducts}
           renderItem={renderProduct}
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContainer}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={fetchProducts} />}
-          initialNumToRender={10}
-          windowSize={5}
+          refreshControl={
+            <RefreshControl 
+              refreshing={refreshing} 
+              onRefresh={fetchProducts}
+              colors={['#6366F1']}
+              tintColor="#6366F1"
+            />
+          }
+          initialNumToRender={8}
+          windowSize={10}
+          maxToRenderPerBatch={5}
           removeClippedSubviews={true}
+          getItemLayout={(data, index) => ({
+            length: 140,
+            offset: 140 * index,
+            index,
+          })}
           ListEmptyComponent={renderEmptyState}
         />
       </View>
+
       <Modal
         visible={showDropdown}
         transparent={true}
@@ -369,6 +519,9 @@ export default function ListItems({ products: initialProducts = [], searchQuery 
       >
         <Pressable style={styles.modalOverlay} onPress={() => setShowDropdown(false)}>
           <View style={styles.dropdownModal}>
+            <View style={styles.dropdownHeader}>
+              <Text style={styles.dropdownTitle}>Filter Items</Text>
+            </View>
             {FILTER_OPTIONS.map((option) => (
               <TouchableOpacity
                 key={option.value}
@@ -380,22 +533,30 @@ export default function ListItems({ products: initialProducts = [], searchQuery 
                 accessible
                 accessibilityLabel={`Select ${option.label} filter`}
               >
-                <Text
-                  style={[
-                    styles.dropdownOptionText,
-                    selectedFilter === option.value && styles.selectedOptionText,
-                  ]}
-                >
-                  {option.label}
-                </Text>
+                <View style={styles.optionContent}>
+                  <Ionicons 
+                    name={option.icon} 
+                    size={22} 
+                    color={selectedFilter === option.value ? '#6366F1' : '#6B7280'} 
+                  />
+                  <Text
+                    style={[
+                      styles.dropdownOptionText,
+                      selectedFilter === option.value && styles.selectedOptionText,
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                </View>
                 {selectedFilter === option.value && (
-                  <Ionicons name="checkmark" size={20} color="#2563EB" />
+                  <Ionicons name="checkmark-circle" size={20} color="#10B981" />
                 )}
               </TouchableOpacity>
             ))}
           </View>
         </Pressable>
       </Modal>
+
       <AddMenu
         visible={showAddMenuModal}
         onClose={() => setShowAddMenuModal(false)}
@@ -408,7 +569,7 @@ export default function ListItems({ products: initialProducts = [], searchQuery 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F8FAFC',
   },
   navContainer: {
     position: 'absolute',
@@ -418,277 +579,398 @@ const styles = StyleSheet.create({
     zIndex: 10,
     backgroundColor: '#FFFFFF',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: 12,
+    elevation: 8,
   },
   nav: {
     width: '100%',
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 12,
   },
   contentContainer: {
     flex: 1,
-    paddingTop: 50, // Space for sticky navbar
+    paddingTop: 60,
   },
   header: {
     flexDirection: 'row',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 16,
     gap: 12,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: '#F1F5F9',
     alignItems: 'center',
-    width: '100%',
   },
-  dropdown: {
+  filterButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 10,
-    minWidth: 110,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    minWidth: 120,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 2,
+    shadowRadius: 4,
     elevation: 2,
   },
-  dropdownText: {
+  filterText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#111827',
-    marginRight: 8,
+    color: '#1E293B',
+    marginLeft: 8,
+    marginRight: 6,
+    flex: 1,
   },
   searchContainer: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-    borderRadius: 10,
-    paddingHorizontal: 12,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  searchContainerExpanded: {
+    flex: 1,
   },
   searchIcon: {
-    marginRight: 8,
+    marginRight: 10,
   },
   searchInput: {
     flex: 1,
     fontSize: 14,
-    color: '#111827',
-    paddingVertical: 10,
+    color: '#1E293B',
+    paddingVertical: 12,
+  },
+  searchInputExpanded: {
+    flex: 1,
   },
   clearButton: {
     padding: 4,
   },
-  addButton: {
-    backgroundColor: '#2563EB',
-    padding: 10,
-    borderRadius: 10,
+  cancelButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#E2E8F0',
+  },
+  cancelButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  clearOrderButton: {
+    backgroundColor: '#EF4444',
+    padding: 12,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  addButton: {
+    backgroundColor: '#6366F1',
+    padding: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   listContainer: {
     paddingHorizontal: 16,
-    paddingBottom: 16,
-    width: '100%',
+    paddingTop: 8,
+    paddingBottom: 20,
   },
   productItem: {
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    padding: 12,
+    borderRadius: 16,
+    padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    width: '100%',
+    borderColor: '#F1F5F9',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
     elevation: 2,
+    position: 'relative',
+    overflow: 'hidden',
   },
   selectedProductItem: {
-    borderColor: '#2563EB',
-    backgroundColor: '#EFF6FF',
+    borderColor: '#10B981',
+    borderWidth: 2,
+    transform: [{ scale: 1.02 }],
+  },
+  selectedOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#ECFDF5',
+    opacity: 0.5,
   },
   colorStrip: {
-    width: 8,
+    width: 6,
+    borderRadius: 3,
+    position: 'relative',
+  },
+  colorGlow: {
+    position: 'absolute',
+    top: -2,
+    bottom: -2,
+    left: -1,
+    right: -1,
     borderRadius: 4,
-    backgroundColor: '#3B82F6',
+    opacity: 0.3,
   },
   productInfo: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: 16,
     justifyContent: 'space-between',
   },
   productHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    marginBottom: 12,
   },
   productDetails: {
     flex: 1,
-    marginRight: 8,
+    marginRight: 12,
   },
   productName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#0F172A',
+    lineHeight: 22,
+    marginBottom: 4,
+  },
+  subInfoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   productSubInfo: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 4,
+    fontSize: 13,
+    color: '#64748B',
+    fontWeight: '500',
   },
   badges: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-  },
-  badge: {
-    width: 16,
-    height: 16,
-    borderRadius: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
+    gap: 10,
   },
   vegBadge: {
-    borderWidth: 1,
-    borderColor: '#22C55E',
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: '#10B981',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F0FDF4',
   },
   vegDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#22C55E',
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#10B981',
+  },
+  heartContainer: {
+    padding: 2,
   },
   selectedBadge: {
-    marginLeft: 4,
+    backgroundColor: '#ECFDF5',
+    borderRadius: 12,
+    padding: 2,
   },
-  priceContainer: {
-    marginTop: 8,
+  priceRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  price: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2563EB',
+  priceContainer: {
+    flex: 1,
   },
-  discountPriceRow: {
+  price: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#6366F1',
+  },
+  discountPriceContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
     gap: 8,
   },
   discountPrice: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2563EB',
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#6366F1',
   },
   originalPrice: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#94A3B8',
     textDecorationLine: 'line-through',
+    fontWeight: '500',
   },
   discountBadge: {
     backgroundColor: '#FEF3C7',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#FDE047',
   },
   discountText: {
-    fontSize: 10,
-    fontWeight: '600',
+    fontSize: 11,
+    fontWeight: '700',
     color: '#D97706',
   },
   quantityContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-end',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   quantityButton: {
     width: 32,
     height: 32,
-    borderRadius: 16,
-    backgroundColor: '#F3F4F6',
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E2E8F0',
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
   },
   quantityDisplay: {
     minWidth: 40,
     height: 32,
-    backgroundColor: '#2563EB',
-    borderRadius: 8,
+    backgroundColor: '#6366F1',
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    marginHorizontal: 8,
+    marginHorizontal: 6,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
   },
   quantityText: {
     color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: 'rgba(15, 23, 42, 0.4)',
     justifyContent: 'flex-start',
-    paddingTop: 100,
-    paddingHorizontal: 16,
+    paddingTop: 120,
+    paddingHorizontal: 20,
   },
   dropdownModal: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    paddingVertical: 8,
+    borderRadius: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  dropdownHeader: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  dropdownTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#0F172A',
   },
   dropdownOption: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
   },
   selectedOption: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: '#F0F9FF',
+  },
+  optionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
   },
   dropdownOptionText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#111827',
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+    marginLeft: 12,
   },
   selectedOptionText: {
-    color: '#2563EB',
+    color: '#6366F1',
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 32,
+    paddingVertical: 60,
+    paddingHorizontal: 32,
   },
-  emptyText: {
+  emptyIconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+    borderWidth: 2,
+    borderColor: '#E2E8F0',
+    borderStyle: 'dashed',
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#374151',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptySubtitle: {
     fontSize: 16,
-    color: '#6B7280',
-    marginTop: 8,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    lineHeight: 22,
   },
 });

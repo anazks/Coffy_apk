@@ -1,9 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNavigation } from '@react-navigation/native';
+import { router } from 'expo-router';
 import React, { useRef, useState } from 'react';
-import { Animated, Dimensions, Platform, SafeAreaView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Animated, Dimensions, Platform, SafeAreaView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import TaxSettings from '../Screens/Admin/Taxes';
-import Branch from '../Screens/Branch';
 import Printer from '../Screens/Printer';
 import Profile from '../Screens/Profile';
 
@@ -14,20 +16,49 @@ export default function Taxes() {
   const [activeTab, setActiveTab] = useState('Taxes');
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
+  const navigation = useNavigation();
 
   const tabs = [
     { id: 'Taxes', label: 'Taxes', icon: 'calculator-outline' },
     { id: 'Profile', label: 'Profile', icon: 'person-outline' },
     { id: 'Printer', label: 'Printer', icon: 'print-outline' },
-    // { id: 'Branch', label: 'Branch', icon: 'storefront-outline' },
   ];
+
+  const handleLogout = async () => {
+    // Show confirmation dialog
+    Alert.alert(
+      'Confirm Logout',
+      'Are you sure you want to log out?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Remove access token or relevant data from AsyncStorage
+              await AsyncStorage.removeItem('access');
+              // Navigate to the index page
+              router.push('/');
+            } catch (error) {
+              console.error('Error during logout:', error);
+            }
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  };
 
   const renderContent = () => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 300,
-        useNativeDriver: true,  
+        useNativeDriver: true,
       }),
       Animated.timing(slideAnim, {
         toValue: 0,
@@ -43,8 +74,6 @@ export default function Taxes() {
         return <Profile />;
       case 'Printer':
         return <Printer />;
-      // case 'Branch':
-      //   return <Branch />;
       default:
         return <TaxSettings />;
     }
@@ -90,6 +119,20 @@ export default function Taxes() {
               {activeTab === tab.id && <View style={styles.activeIndicator} />}
             </TouchableOpacity>
           ))}
+          {/* Logout Button */}
+          <TouchableOpacity
+            style={[styles.tabButton, styles.logoutButton]}
+            onPress={handleLogout}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name="log-out-outline"
+              size={isTablet ? 24 : 20}
+              color="#dc2626"
+              style={styles.tabIcon}
+            />
+            <Text style={[styles.tabText, styles.logoutText]}>Logout</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -111,7 +154,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f9fafb',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0, // Ensure no overlap with status bar
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   tabBarContainer: {
     backgroundColor: '#ffffff',
@@ -122,14 +165,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 6,
     elevation: 4,
-    zIndex: 1000, // Ensure tab bar stays above content
+    zIndex: 1000,
   },
   tabBar: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     paddingVertical: isTablet ? 16 : 12,
     paddingHorizontal: isTablet ? '5%' : 12,
-    marginTop: Platform.OS === 'ios' ? 10 : 8, // Extra margin to avoid notification overlap
+    marginTop: Platform.OS === 'ios' ? 10 : 8,
   },
   tabButton: {
     flex: 1,
@@ -140,7 +183,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     borderRadius: 12,
     marginHorizontal: 4,
-    minHeight: 50, // Improved touch target
+    minHeight: 50,
   },
   activeTab: {
     backgroundColor: '#4f46e5',
@@ -149,6 +192,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 5,
+  },
+  logoutButton: {
+    backgroundColor: '#fee2e2',
   },
   tabIcon: {
     marginRight: 8,
@@ -160,6 +206,9 @@ const styles = StyleSheet.create({
   },
   activeText: {
     color: '#ffffff',
+  },
+  logoutText: {
+    color: '#dc2626',
   },
   activeIndicator: {
     position: 'absolute',

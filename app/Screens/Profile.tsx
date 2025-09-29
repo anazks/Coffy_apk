@@ -47,7 +47,7 @@ export default function Profile() {
         setStoresData([]);
       }
     } catch (error) {
-      console.error('Profile/Role/Store Fetch Error:', error);
+      console.log('Profile/Role/Store Fetch Error:', error);
       Alert.alert('Error', 'Something went wrong while fetching data');
     } finally {
       setLoading(false);

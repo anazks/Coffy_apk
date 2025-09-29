@@ -1,18 +1,18 @@
-import { getCategories, updateCategory, deleteCategory } from '@/app/Api/Services/Products';
+import { deleteCategory, getCategories, updateCategory } from '@/app/Api/Services/Products';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Modal,
-  RefreshControl,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Modal,
+    RefreshControl,
+    StyleSheet,
+    Switch,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 
 export default function Categories() {
@@ -42,7 +42,7 @@ export default function Categories() {
         Alert.alert('Error', 'Failed to load categories');
       }
     } catch (error) {
-      console.error('Categories fetch error:', error);
+      console.log('Categories fetch error:', error);
       Alert.alert('Error', 'Something went wrong while fetching categories');
     } finally {
       setLoading(false);
@@ -86,7 +86,7 @@ export default function Categories() {
         throw new Error('Invalid response from server');
       }
     } catch (error) {
-      console.error('Update error:', error);
+      console.log('Update error:', error);
       Alert.alert('Error', 'Failed to update category');
     }
   };
@@ -111,7 +111,7 @@ export default function Categories() {
                 throw new Error('Invalid response from server');
               }
             } catch (error) {
-              console.error('Delete error:', error);
+              console.log('Delete error:', error);
               Alert.alert('Error', 'Failed to delete category');
             }
           },
@@ -129,7 +129,7 @@ export default function Categories() {
       );
       setCategories(updatedCategories);
     } catch (error) {
-      console.error('Status toggle error:', error);
+      console.log('Status toggle error:', error);
       Alert.alert('Error', 'Failed to update status');
     }
   };

@@ -7,7 +7,7 @@ export const addBranch = async (data: any) => {
             console.log(res,"branch from backend")
             return res;
         } catch (error) {
-            console.error('Error adding branch:', error);
+            console.log('Error adding branch:', error);
             throw error;   
         }
 }
@@ -16,7 +16,7 @@ export const getBranches = async () => {
             let res = await Axios.get('/branches/');
             return res;
         } catch (error) {
-            console.error('Error fetching branches:', error);
+            console.log('Error fetching branches:', error);
             throw error;   
         }
 }

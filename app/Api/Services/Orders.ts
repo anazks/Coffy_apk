@@ -11,13 +11,20 @@ export const createOrder = async (data: any) => {
 
 export const getOrders = async () => {
         try {
-            const response = await Axios.get('/orders/')
+            const response = await Axios.get('/orders/order-list/')
             return response.data
         } catch (error) {
             throw error 
         }
 }
-
+export const getRecept = async (id: string) => {
+        try {
+            const response = await Axios.get(`/orders/${id}/receipt/`)
+            return response.data
+        } catch (error) {
+            throw error 
+        }
+}
 export const CheckOutOrder = async (data: any) => {
         try {
             console.log(data)

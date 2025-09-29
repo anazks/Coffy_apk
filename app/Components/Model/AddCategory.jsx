@@ -70,7 +70,7 @@ const AddCategory = ({
         color: categoryForm.color
       });
 
-      if (response.success) {
+      if (response.status === 201) {
         Alert.alert('Success', 'Category created successfully');
         resetForm();
         onCategoryAdded?.();
@@ -80,7 +80,7 @@ const AddCategory = ({
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to create category');
-      console.error('Category creation error:', error);
+      console.log('Category creation error:', error);
     } finally {
       setLoading(false);
     }

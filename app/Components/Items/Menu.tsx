@@ -1,7 +1,21 @@
-import { getMenuItems, updateMenuItem, deleteMenu } from '@/app/Api/Services/Products';
+import { deleteMenu, getMenuItems, updateMenuItem } from '@/app/Api/Services/Products';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Modal, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Modal,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { getCategories, getmodifiers, getTaxes } from '../../Api/Services/Products';
 
 const Menu = () => {
   const [menuItems, setMenuItems] = useState([]);
@@ -11,15 +25,41 @@ const Menu = () => {
   const [selectedItem, setSelectedItem] = useState(null);
   const [editForm, setEditForm] = useState({
     name: '',
-    price: '',
-    diet: '',
+    category: '',
+    categoryName: '',
     portion: '',
-    discountPrice: '',
+    diet: '',
+    price: '',
+    status: true,
+    stock_track: false,
+    stock: '',
+    stock_alert: '',
+    description: '',
+    code: '',
+    barcode: '',
+    color: '#4F46E5',
+    modifier: '',
+    modifierName: '',
+    tax: '',
+    taxName: '',
     is_favorite: false,
   });
+  const [availableCategories, setAvailableCategories] = useState([]);
+  const [availableModifiers, setAvailableModifiers] = useState([]);
+  const [availableTaxes, setAvailableTaxes] = useState([]);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showModifierDropdown, setShowModifierDropdown] = useState(false);
+  const [showTaxDropdown, setShowTaxDropdown] = useState(false);
+
+  const colorPalette = [
+    '#4F46E5', '#10B981', '#EF4444', '#F59E0B',
+    '#8B5CF6', '#06B6D4', '#EC4899', '#6366F1',
+    '#F97316', '#84CC16', '#14B8A6', '#EAB308',
+  ];
 
   useEffect(() => {
     fetchMenuItems();
+    fetchDropdownData();
   }, []);
 
   const fetchMenuItems = async () => {
@@ -28,16 +68,32 @@ const Menu = () => {
       const items = await getMenuItems();
       setMenuItems(items || []);
     } catch (error) {
-      console.error('Error fetching menu items:', error);
+      console.log('Error fetching menu items:', error);
       Alert.alert('Error', 'Failed to load menu items');
     } finally {
       setLoading(false);
     }
   };
 
+  const fetchDropdownData = async () => {
+    try {
+      const [categoriesResponse, modifiersResponse, taxesResponse] = await Promise.all([
+        getCategories(),
+        getmodifiers(),
+        getTaxes(),
+      ]);
+      setAvailableCategories(categoriesResponse || []);
+      setAvailableModifiers(modifiersResponse.data || []);
+      setAvailableTaxes((taxesResponse.data || []).filter(tax => tax && tax.id && tax.tax_name));
+    } catch (error) {
+      console.log('Error fetching dropdown data:', error);
+      Alert.alert('Error', 'Failed to load dropdown data');
+    }
+  };
+
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchMenuItems();
+    await Promise.all([fetchMenuItems(), fetchDropdownData()]);
     setRefreshing(false);
   };
 
@@ -45,34 +101,63 @@ const Menu = () => {
     setSelectedItem(item);
     setEditForm({
       name: item.name,
+      category: item.category?.id?.toString() || '',
+      categoryName: item.category?.name || '',
+      portion: item.portion || 'Small',
+      diet: item.diet || 'Veg',
       price: item.price.toString(),
-      diet: item.diet,
-      portion: item.portion,
-      discountPrice: item.discountPrice ? item.discountPrice.toString() : '',
-      is_favorite: item.is_favorite,
+      status: item.status ?? true,
+      stock_track: item.stock_track ?? false,
+      stock: item.stock?.toString() || '',
+      stock_alert: item.stock_alert?.toString() || '',
+      description: item.description || '',
+      code: item.code || '',
+      barcode: item.barcode || '',
+      color: item.color || '#4F46E5',
+      modifier: item.modifier?.id?.toString() || '',
+      modifierName: item.modifier?.name || '',
+      tax: item.tax?.id?.toString() || '',
+      taxName: item.tax?.tax_name || '',
+      is_favorite: item.is_favorite ?? false,
     });
     setEditModalVisible(true);
   };
 
   const handleSaveEdit = async () => {
-    if (!editForm.name.trim() || !editForm.price.trim()) {
-      Alert.alert('Error', 'Name and price are required');
+    if (!editForm.name.trim() || !editForm.price || !editForm.category || !editForm.code.trim()) {
+      Alert.alert('Error', 'Name, price, category, and code are required');
       return;
     }
     try {
       const updatedData = {
-        name: editForm.name,
-        price: parseFloat(editForm.price),
-        diet: editForm.diet,
+        name: editForm.name.trim(),
+        category: parseInt(editForm.category),
         portion: editForm.portion,
-        discountPrice: editForm.discountPrice ? parseFloat(editForm.discountPrice) : null,
+        diet: editForm.diet,
+        price: parseFloat(editForm.price),
+        status: editForm.status,
+        stock_track: editForm.stock_track,
+        stock: editForm.stock ? parseInt(editForm.stock) : null,
+        stock_alert: editForm.stock_alert ? parseInt(editForm.stock_alert) : null,
+        description: editForm.description.trim(),
+        code: editForm.code.trim(),
+        barcode: editForm.barcode.trim(),
+        color: editForm.color,
+        modifier: editForm.modifier ? parseInt(editForm.modifier) : null,
+        tax: editForm.tax ? parseInt(editForm.tax) : null,
         is_favorite: editForm.is_favorite,
       };
       const response = await updateMenuItem(selectedItem.id, updatedData);
       if (response && response.status === 200) {
         const updatedItems = menuItems.map((item) =>
           item.id === selectedItem.id
-            ? { ...item, ...updatedData }
+            ? {
+                ...item,
+                ...updatedData,
+                category: { id: updatedData.category, name: editForm.categoryName },
+                modifier: updatedData.modifier ? { id: updatedData.modifier, name: editForm.modifierName } : null,
+                tax: updatedData.tax ? { id: updatedData.tax, name: editForm.taxName } : null,
+              }
             : item
         );
         setMenuItems(updatedItems);
@@ -83,7 +168,7 @@ const Menu = () => {
         throw new Error('Invalid response from server');
       }
     } catch (error) {
-      console.error('Update error:', error);
+      console.log('Update error:', error);
       Alert.alert('Error', 'Failed to update menu item');
     }
   };
@@ -101,14 +186,13 @@ const Menu = () => {
             try {
               const response = await deleteMenu(item.id);
               if (response && response.status === 204) {
-                const updatedItems = menuItems.filter((i) => i.id !== item.id);
-                setMenuItems(updatedItems);
+                setMenuItems(menuItems.filter((i) => i.id !== item.id));
                 Alert.alert('Success', 'Menu item deleted');
               } else {
                 throw new Error('Invalid response from server');
               }
             } catch (error) {
-              console.error('Delete error:', error);
+              console.log('Delete error:', error);
               Alert.alert('Error', 'Failed to delete menu item');
             }
           },
@@ -116,6 +200,161 @@ const Menu = () => {
       ]
     );
   };
+
+  const updateEditForm = (field, value) => {
+    setEditForm((currentForm) => ({
+      ...currentForm,
+      [field]: value,
+    }));
+  };
+
+  const handleCategorySelect = (category) => {
+    updateEditForm('category', category.id.toString());
+    updateEditForm('categoryName', category.name);
+    setShowCategoryModal(false);
+  };
+
+  const handleModifierSelect = (modifier) => {
+    updateEditForm('modifier', modifier.id.toString());
+    updateEditForm('modifierName', modifier.name);
+    setShowModifierDropdown(false);
+  };
+
+  const handleTaxSelect = (tax) => {
+    updateEditForm('tax', tax.id.toString());
+    updateEditForm('taxName', tax.tax_name);
+    setShowTaxDropdown(false);
+  };
+
+  const CategorySelectionModal = () => (
+    <Modal
+      visible={showCategoryModal}
+      animationType="slide"
+      transparent
+      onRequestClose={() => setShowCategoryModal(false)}
+      statusBarTranslucent={true}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.categoryModalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Select Category</Text>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setShowCategoryModal(false)}
+            >
+              <Ionicons name="close" size={24} color="#6B7280" />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.categoryListContainer}>
+            {availableCategories.length === 0 ? (
+              <Text style={{ textAlign: 'center', color: '#6B7280', padding: 20 }}>
+                No categories available
+              </Text>
+            ) : (
+              <FlatList
+                data={availableCategories}
+                keyExtractor={(item) => item.id.toString()}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={[
+                      styles.categoryItem,
+                      editForm.category === item.id.toString() && styles.selectedCategoryItem,
+                    ]}
+                    onPress={() => handleCategorySelect(item)}
+                  >
+                    <Text
+                      style={[
+                        styles.categoryItemText,
+                        editForm.category === item.id.toString() && styles.selectedCategoryText,
+                      ]}
+                    >
+                      {item.name}
+                    </Text>
+                    {editForm.category === item.id.toString() && (
+                      <Ionicons name="checkmark" size={20} color="#3B82F6" />
+                    )}
+                  </TouchableOpacity>
+                )}
+                showsVerticalScrollIndicator={true}
+                contentContainerStyle={styles.categoryListContent}
+                style={styles.categoryList}
+              />
+            )}
+          </View>
+          <View style={styles.modalActions}>
+            <TouchableOpacity
+              style={[styles.modalButton, styles.cancelButton]}
+              onPress={() => setShowCategoryModal(false)}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+
+  const CustomDropdown = ({ label, value, displayValue, placeholder, options, onSelect, showDropdown, setShowDropdown, zIndex = 1 }) => (
+    <View style={[styles.formGroup, { zIndex }]}>
+      <Text style={styles.inputLabel}>{label}</Text>
+      <TouchableOpacity
+        style={[styles.dropdownButton, !displayValue && styles.placeholderButton]}
+        onPress={() => setShowDropdown(!showDropdown)}
+      >
+        <Text style={displayValue ? styles.dropdownText : styles.dropdownPlaceholder}>
+          {displayValue || placeholder}
+        </Text>
+        <Ionicons
+          name={showDropdown ? 'chevron-up' : 'chevron-down'}
+          size={20}
+          color="#6B7280"
+        />
+      </TouchableOpacity>
+      {showDropdown && (
+        <View style={[styles.dropdownOptions, { zIndex: zIndex + 100 }]}>
+          <ScrollView
+            style={styles.dropdownScroll}
+            nestedScrollEnabled={true}
+            showsVerticalScrollIndicator={true}
+            contentContainerStyle={{ paddingBottom: 10 }}
+          >
+            {options.map((option) => (
+              <TouchableOpacity
+                key={option.id}
+                style={styles.dropdownOption}
+                onPress={() => onSelect(option)}
+              >
+                <Text style={styles.dropdownOptionText}>
+                  {option.name || option.tax_name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+    </View>
+  );
+
+  const ColorPicker = ({ selectedColor, onColorSelect }) => (
+    <View style={styles.formGroup}>
+      <Text style={styles.inputLabel}>Color</Text>
+      <View style={styles.colorGrid}>
+        {colorPalette.map((color) => (
+          <TouchableOpacity
+            key={color}
+            style={[
+              styles.colorOption,
+              { backgroundColor: color },
+              selectedColor === color && styles.selectedColor,
+            ]}
+            onPress={() => onColorSelect(color)}
+          >
+            {selectedColor === color && <Ionicons name="checkmark" size={16} color="white" />}
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
 
   const renderMenuItem = ({ item }) => (
     <View style={styles.itemCard}>
@@ -125,24 +364,14 @@ const Menu = () => {
           {item.is_favorite && (
             <Ionicons name="heart" size={16} color="#EF4444" style={styles.badge} />
           )}
-          {item.discountPrice && (
-            <View style={styles.discountBadge}>
-              <Text style={styles.discountText}>
-                {Math.round(((item.price - item.discountPrice) / item.price) * 100)}% OFF
-              </Text>
-            </View>
-          )}
         </View>
       </View>
       <View style={styles.itemDetails}>
         <Text style={styles.itemInfo}>
-          {item.diet} • {item.portion}
+          {item.diet} • {item.portion} • {item.category?.name || 'No Category'}
         </Text>
         <Text style={styles.itemPrice}>
-          ₹{item.discountPrice || item.price}
-          {item.discountPrice && (
-            <Text style={styles.originalPrice}> ₹{item.price}</Text>
-          )}
+          ₹{item.price}
         </Text>
       </View>
       <View style={styles.itemActions}>
@@ -216,57 +445,141 @@ const Menu = () => {
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.modalContent}>
-              <Text style={styles.inputLabel}>Name</Text>
+              <Text style={styles.inputLabel}>Name *</Text>
               <TextInput
                 style={styles.textInput}
                 value={editForm.name}
-                onChangeText={(text) => setEditForm({ ...editForm, name: text })}
+                onChangeText={(text) => updateEditForm('name', text)}
                 placeholder="Enter item name"
                 autoCapitalize="words"
                 accessible
                 accessibilityLabel="Menu item name input"
               />
-              <Text style={styles.inputLabel}>Price</Text>
+              <View style={styles.formGroup}>
+                <Text style={styles.inputLabel}>Category *</Text>
+                <TouchableOpacity
+                  style={[styles.dropdownButton, !editForm.categoryName && styles.placeholderButton]}
+                  onPress={() => setShowCategoryModal(true)}
+                >
+                  <Text style={editForm.categoryName ? styles.dropdownText : styles.dropdownPlaceholder}>
+                    {editForm.categoryName || 'Select Category'}
+                  </Text>
+                  <Ionicons name="chevron-down" size={20} color="#6B7280" />
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.inputLabel}>Price *</Text>
               <TextInput
                 style={styles.textInput}
                 value={editForm.price}
-                onChangeText={(text) => setEditForm({ ...editForm, price: text })}
+                onChangeText={(text) => updateEditForm('price', text)}
                 placeholder="Enter price"
                 keyboardType="numeric"
                 accessible
                 accessibilityLabel="Menu item price input"
               />
-              <Text style={styles.inputLabel}>Discount Price (Optional)</Text>
-              <TextInput
-                style={styles.textInput}
-                value={editForm.discountPrice}
-                onChangeText={(text) => setEditForm({ ...editForm, discountPrice: text })}
-                placeholder="Enter discount price"
-                keyboardType="numeric"
-                accessible
-                accessibilityLabel="Menu item discount price input"
+              <CustomDropdown
+                label="Tax"
+                value={editForm.tax}
+                displayValue={editForm.taxName}
+                placeholder="Select Tax (Optional)"
+                options={availableTaxes}
+                onSelect={handleTaxSelect}
+                showDropdown={showTaxDropdown}
+                setShowDropdown={setShowTaxDropdown}
+                zIndex={60}
               />
-              <Text style={styles.inputLabel}>Diet</Text>
-              <TextInput
-                style={styles.textInput}
-                value={editForm.diet}
-                onChangeText={(text) => setEditForm({ ...editForm, diet: text })}
-                placeholder="Enter diet (e.g., Veg, Non-Veg)"
-                accessible
-                accessibilityLabel="Menu item diet input"
+              <CustomDropdown
+                label="Modifier"
+                value={editForm.modifier}
+                displayValue={editForm.modifierName}
+                placeholder="Select Modifier (Optional)"
+                options={availableModifiers}
+                onSelect={handleModifierSelect}
+                showDropdown={showModifierDropdown}
+                setShowDropdown={setShowModifierDropdown}
+                zIndex={50}
               />
-              <Text style={styles.inputLabel}>Portion</Text>
+              <View style={[styles.formGroup, styles.switchContainer]}>
+                <Text style={styles.inputLabel}>Status</Text>
+                <Switch
+                  value={editForm.status}
+                  onValueChange={(value) => updateEditForm('status', value)}
+                  thumbColor={editForm.status ? '#3B82F6' : '#ccc'}
+                  trackColor={{ false: '#ddd', true: '#DBEAFE' }}
+                />
+              </View>
+              <View style={[styles.formGroup, styles.switchContainer]}>
+                <Text style={styles.inputLabel}>Track Stock</Text>
+                <Switch
+                  value={editForm.stock_track}
+                  onValueChange={(value) => updateEditForm('stock_track', value)}
+                  thumbColor={editForm.stock_track ? '#3B82F6' : '#ccc'}
+                  trackColor={{ false: '#ddd', true: '#DBEAFE' }}
+                />
+              </View>
+              {editForm.stock_track && (
+                <>
+                  <Text style={styles.inputLabel}>Stock Quantity</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={editForm.stock}
+                    onChangeText={(text) => updateEditForm('stock', text)}
+                    placeholder="Enter stock quantity"
+                    keyboardType="numeric"
+                    accessible
+                    accessibilityLabel="Menu item stock quantity input"
+                  />
+                  <Text style={styles.inputLabel}>Stock Alert Level</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={editForm.stock_alert}
+                    onChangeText={(text) => updateEditForm('stock_alert', text)}
+                    placeholder="Enter stock alert level"
+                    keyboardType="numeric"
+                    accessible
+                    accessibilityLabel="Menu item stock alert level input"
+                  />
+                </>
+              )}
+              <Text style={styles.inputLabel}>Description</Text>
+              <TextInput
+                style={[styles.textInput, styles.textArea]}
+                value={editForm.description}
+                onChangeText={(text) => updateEditForm('description', text)}
+                placeholder="Enter description (max 1000 characters)"
+                multiline
+                numberOfLines={3}
+                maxLength={1000}
+                accessible
+                accessibilityLabel="Menu item description input"
+              />
+              <Text style={styles.inputLabel}>Code *</Text>
               <TextInput
                 style={styles.textInput}
-                value={editForm.portion}
-                onChangeText={(text) => setEditForm({ ...editForm, portion: text })}
-                placeholder="Enter portion (e.g., Small, Medium)"
+                value={editForm.code}
+                onChangeText={(text) => updateEditForm('code', text)}
+                placeholder="Enter code (max 10 characters)"
+                maxLength={10}
                 accessible
-                accessibilityLabel="Menu item portion input"
+                accessibilityLabel="Menu item code input"
+              />
+              <Text style={styles.inputLabel}>Barcode</Text>
+              <TextInput
+                style={styles.textInput}
+                value={editForm.barcode}
+                onChangeText={(text) => updateEditForm('barcode', text)}
+                placeholder="Enter barcode (max 100 characters)"
+                maxLength={100}
+                accessible
+                accessibilityLabel="Menu item barcode input"
+              />
+              <ColorPicker
+                selectedColor={editForm.color}
+                onColorSelect={(color) => updateEditForm('color', color)}
               />
               <TouchableOpacity
                 style={styles.favoriteButton}
-                onPress={() => setEditForm({ ...editForm, is_favorite: !editForm.is_favorite })}
+                onPress={() => updateEditForm('is_favorite', !editForm.is_favorite)}
                 accessible
                 accessibilityLabel={editForm.is_favorite ? 'Remove from favorites' : 'Add to favorites'}
               >
@@ -301,6 +614,7 @@ const Menu = () => {
           </View>
         </View>
       </Modal>
+      <CategorySelectionModal />
     </View>
   );
 };
@@ -355,17 +669,6 @@ const styles = StyleSheet.create({
   badge: {
     marginLeft: 4,
   },
-  discountBadge: {
-    backgroundColor: '#FEF3C7',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  discountText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#D97706',
-  },
   itemDetails: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -380,12 +683,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#3B82F6',
-  },
-  originalPrice: {
-    fontSize: 12,
-    color: '#6B7280',
-    textDecorationLine: 'line-through',
-    marginLeft: 4,
   },
   itemActions: {
     flexDirection: 'row',
@@ -456,6 +753,10 @@ const styles = StyleSheet.create({
     color: '#1F2937',
     marginBottom: 16,
   },
+  textArea: {
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
   favoriteButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -495,6 +796,127 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     color: '#FFFFFF',
+  },
+  formGroup: {
+    marginBottom: 16,
+    position: 'relative',
+  },
+  switchContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  dropdownButton: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  placeholderButton: {
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+  },
+  dropdownText: {
+    fontSize: 15,
+    color: '#1F2937',
+  },
+  dropdownPlaceholder: {
+    fontSize: 15,
+    color: '#6B7280',
+  },
+  dropdownOptions: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    marginTop: 4,
+    maxHeight: 200,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 10,
+  },
+  dropdownScroll: {
+    maxHeight: 200,
+  },
+  dropdownOption: {
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  dropdownOptionText: {
+    fontSize: 15,
+    color: '#1F2937',
+  },
+  colorGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginTop: 8,
+  },
+  colorOption: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  selectedColor: {
+    borderColor: '#1F2937',
+  },
+  categoryModalContainer: {
+    margin: 20,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    maxHeight: '70%',
+    width: '90%',
+    maxWidth: 500,
+  },
+  categoryListContainer: {
+    flex: 1,
+    minHeight: 200,
+  },
+  categoryList: {
+    flex: 1,
+  },
+  categoryListContent: {
+    paddingBottom: 10,
+  },
+  categoryItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  selectedCategoryItem: {
+    backgroundColor: '#F0F9FF',
+    borderLeftWidth: 4,
+    borderLeftColor: '#3B82F6',
+  },
+  categoryItemText: {
+    fontSize: 16,
+    color: '#1F2937',
+    flex: 1,
+  },
+  selectedCategoryText: {
+    color: '#3B82F6',
+    fontWeight: '600',
   },
 });
 
