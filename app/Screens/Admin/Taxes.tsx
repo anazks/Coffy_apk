@@ -12,7 +12,7 @@ import {
     View
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { AddTax, getTaxes, deleteTax, editTax } from '../../Api/Services/Products'; // adjust path
+import { AddTax, deleteTax, editTax, getTaxes } from '../../Api/Services/Products'; // adjust path
 
 export default function Taxes() {
   const [taxes, setTaxes] = useState([]);
@@ -43,7 +43,7 @@ export default function Taxes() {
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to fetch taxes');
-      console.error('Fetch Taxes Error:', error);
+      console.log('Fetch Taxes Error:', error);
     } finally {
       setLoading(false);
     }
@@ -89,7 +89,7 @@ export default function Taxes() {
         Alert.alert('Error', response.message || `Failed to ${isEditing ? 'update' : 'add'} tax`);
       }
     } catch (error) {
-      console.error(`${isEditing ? 'Edit' : 'Add'} Tax Error:`, error.response?.data, error.response?.status, error.message);
+      console.log(`${isEditing ? 'Edit' : 'Add'} Tax Error:`, error.response?.data, error.response?.status, error.message);
       Alert.alert('Error', `Failed to ${isEditing ? 'update' : 'add'} tax: ${error.response?.data?.message || error.message}`);
     } finally {
       setLoading(false);
@@ -117,7 +117,7 @@ export default function Taxes() {
                 Alert.alert('Error', response.message || 'Failed to delete tax');
               }
             } catch (error) {
-              console.error('Delete Tax Error:', error.response?.data, error.response?.status, error.message);
+              console.log('Delete Tax Error:', error.response?.data, error.response?.status, error.message);
               Alert.alert('Error', `Failed to delete tax: ${error.response?.data?.message || error.message}`);
             } finally {
               setLoading(false);

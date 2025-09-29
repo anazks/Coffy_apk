@@ -1,6 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Dimensions, Platform, SafeAreaView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+  Animated,
+  Dimensions,
+  Platform,
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { getCategories, getmodifiers } from '../../Api/Services/Products';
 import Categories from '../../Components/Items/Categories';
 import Menu from '../../Components/Items/Menu';
@@ -19,15 +29,15 @@ const InventoryManagement = () => {
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [activeTab, setActiveTab] = useState('categories');
-  const [searchQuery, setSearchQuery] = useState('');
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     fetchCategories();
     fetchModifiers();
     Animated.timing(fadeAnim, {
       toValue: 1,
-      duration: 300,
+      duration: 400,
       useNativeDriver: true,
     }).start();
   }, []);
@@ -39,7 +49,7 @@ const InventoryManagement = () => {
         setCategories(response.data || []);
       }
     } catch (error) {
-      console.error('Error fetching categories:', error);
+      console.log('Error fetching categories:', error);
     }
   };
 
@@ -50,41 +60,52 @@ const InventoryManagement = () => {
         setModifiers(response.data || []);
       }
     } catch (error) {
-      console.error('Error fetching modifiers:', error);
+      console.log('Error fetching modifiers:', error);
     }
   };
 
   const handleCategoryAdded = () => {
     fetchCategories();
+    setShowAddCategory(false);
   };
 
   const handleModifierAdded = () => {
     fetchModifiers();
+    setShowAddModifier(false);
   };
 
   const handleMenuAdded = () => {
     console.log('Menu item added successfully');
+    setShowAddMenu(false);
   };
 
-  const handleTabPress = (tab) => {
-    Animated.timing(fadeAnim, {
-      toValue: 0,
-      duration: 200,
-      useNativeDriver: true,
-    }).start(() => {
-      setActiveTab(tab);
-      setSearchQuery(''); // Reset search when switching tabs
+  const handleTabPress = (tab: string) => {
+    Animated.parallel([
       Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 200,
+        toValue: 0,
+        duration: 150,
         useNativeDriver: true,
-      }).start();
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 0.95,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setActiveTab(tab);
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+        Animated.timing(scaleAnim, {
+          toValue: 1,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+      ]).start();
     });
-  };
-
-  const handleSearch = (text) => {
-    setSearchQuery(text);
-    // Filter logic can be implemented in the respective components (Categories, Modifier, Menu)
   };
 
   const actionButtons = [
@@ -116,20 +137,7 @@ const InventoryManagement = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F9FAFB" />
-      <View style={styles.header}>
-        {/* <Text style={styles.headerTitle}>Inventory Management</Text> */}
-        <View style={styles.searchContainer}>
-          <Ionicons name="search-outline" size={20} color="#6B7280" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder={`Search ${activeTab}`}
-            value={searchQuery}
-            onChangeText={handleSearch}
-            accessibilityLabel={`Search ${activeTab}`}
-          />
-        </View>
-      </View>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       <View style={styles.tabContainer}>
         <View style={styles.tabIndicatorContainer}>
           {['categories', 'modifiers', 'menu'].map((tab) => (
@@ -153,7 +161,12 @@ const InventoryManagement = () => {
             {
               transform: [
                 {
-                  translateX: activeTab === 'categories' ? 0 : activeTab === 'modifiers' ? width * (isTablet ? 0.31 : 0.33) : width * (isTablet ? 0.62 : 0.66),
+                  translateX:
+                    activeTab === 'categories'
+                      ? 0
+                      : activeTab === 'modifiers'
+                      ? width * (isTablet ? 0.31 : 0.33)
+                      : width * (isTablet ? 0.62 : 0.66),
                 },
               ],
               width: isTablet ? '31%' : '33%',
@@ -161,16 +174,18 @@ const InventoryManagement = () => {
           ]}
         />
       </View>
-      <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
-        {activeTab === 'categories' ? (
-          <Categories categories={categories} onRefresh={fetchCategories} searchQuery={searchQuery} />
-        ) : activeTab === 'modifiers' ? (
-          <Modifier modifiers={modifiers} onRefresh={fetchModifiers} searchQuery={searchQuery} />
-        ) : (
-          <Menu searchQuery={searchQuery} />
-        )}
+      <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
+        <View style={styles.contentCard}>
+          {activeTab === 'categories' ? (
+            <Categories categories={categories} onRefresh={fetchCategories} />
+          ) : activeTab === 'modifiers' ? (
+            <Modifier modifiers={modifiers} onRefresh={fetchModifiers} />
+          ) : (
+            <Menu />
+          )}
+        </View>
       </Animated.View>
-      <View style={styles.toolbar}>
+      <View style={[styles.toolbar, isTablet && styles.toolbarTablet]}>
         {actionButtons.map((button) => (
           <TouchableOpacity
             key={button.id}
@@ -180,8 +195,10 @@ const InventoryManagement = () => {
             accessible
             accessibilityLabel={button.accessibilityLabel}
           >
-            <Ionicons name={button.icon} size={20} color="#FFFFFF" />
-            <Text style={styles.toolbarButtonText}>{button.label}</Text>
+            <Ionicons name={button.icon} size={isTablet ? 24 : 20} color="#FFFFFF" />
+            {isTablet && (
+              <Text style={styles.toolbarButtonText}>{button.label}</Text>
+            )}
           </TouchableOpacity>
         ))}
       </View>
@@ -211,41 +228,9 @@ const InventoryManagement = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F3F4F6',
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
     paddingHorizontal: isTablet ? 32 : 16,
-  },
-  header: {
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    backgroundColor: '#F9FAFB',
-  },
-  headerTitle: {
-    fontSize: isTablet ? 28 : 24,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 12,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: '#111827',
   },
   tabContainer: {
     marginBottom: 20,
@@ -253,6 +238,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 4,
     overflow: 'hidden',
+    marginTop: isTablet ? 20 : 16,
   },
   tabIndicatorContainer: {
     flexDirection: 'row',
@@ -262,20 +248,20 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: isTablet ? 14 : 12,
+    paddingVertical: isTablet ? 16 : 12,
     borderRadius: 10,
     backgroundColor: 'transparent',
   },
   activeTab: {
     backgroundColor: '#FFFFFF',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
   tabText: {
-    fontSize: isTablet ? 16 : 14,
+    fontSize: isTablet ? 18 : 16,
     fontWeight: '600',
     color: '#6B7280',
   },
@@ -287,44 +273,62 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 4,
     bottom: 4,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#2563EB',
     borderRadius: 10,
     zIndex: 1,
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 2,
   },
   content: {
     flex: 1,
-    paddingHorizontal: 8,
+  },
+  contentCard: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: isTablet ? 24 : 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   toolbar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    padding: 16,
+    padding: isTablet ? 16 : 12,
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -1 },
+    shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  toolbarTablet: {
+    paddingHorizontal: 24,
   },
   toolbarButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 10,
-    marginHorizontal: 6,
+    paddingVertical: isTablet ? 14 : 12,
+    borderRadius: 12,
+    marginHorizontal: isTablet ? 8 : 6,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
   },
   toolbarButtonText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: isTablet ? 16 : 14,
     fontWeight: '600',
     marginLeft: 8,
   },

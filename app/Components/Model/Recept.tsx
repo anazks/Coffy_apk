@@ -1,13 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
-  Alert,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Alert,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
 // Placeholder for print function (replace with actual printing logic)
@@ -16,7 +16,7 @@ const printReceipt = async (receiptData: any) => {
     console.log('Printing receipt:', JSON.stringify(receiptData, null, 2));
     Alert.alert('Print', 'Receipt sent to printer!');
   } catch (error) {
-    console.error('Error printing receipt:', error);
+    console.log('Error printing receipt:', error);
     Alert.alert('Error', 'Failed to print receipt. Please try again.');
   }
 };

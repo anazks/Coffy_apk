@@ -2,19 +2,19 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import React, { useState } from 'react';
 import {
-  Alert,
-  Keyboard,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View,
+    Alert,
+    Keyboard,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    View,
 } from 'react-native';
-import { CheckOutOrder } from '../../Api/Services/Orders';
+import { CheckOutOrder, getRecept } from '../../Api/Services/Orders';
 import { CreateOrder } from '../../Api/Services/Products';
 
 interface Product {
@@ -41,6 +41,7 @@ interface OrderDetailsModalProps {
   selectedProducts: ProductWithQuantity[];
   onOrderComplete: (orderData: OrderData) => void;
   onSaveOrder?: (orderData: Partial<OrderData>) => void;
+  onClearItems?: () => void;
 }
 
 type PaymentMethodType = 'cash' | 'card' | 'upi' | 'tabby' | 'bank-transfer' | 'digital-wallet' | 'split';
@@ -70,6 +71,7 @@ export default function OrderDetailsModal({
   selectedProducts,
   onOrderComplete,
   onSaveOrder = () => {},
+  onClearItems = () => {},
 }: OrderDetailsModalProps) {
   const navigation = useNavigation();
   const [orderType, setOrderType] = useState<'dine-in' | 'takeout' | 'delivery'>('dine-in');
@@ -95,7 +97,7 @@ export default function OrderDetailsModal({
     return sum + (price * product.quantity);
   }, 0);
 
-  // Reset form when modal closes
+  // Reset form and clear selected items when modal closes
   const handleClose = () => {
     setOrderType('dine-in');
     setTicketName('');
@@ -111,6 +113,7 @@ export default function OrderDetailsModal({
     setTableId('');
     setIsProcessing(false);
     setShowPaymentSection(false);
+    onClearItems();
     onClose();
   };
 
@@ -198,6 +201,32 @@ export default function OrderDetailsModal({
     return Math.abs(total - totalAmount) < 0.01;
   };
 
+  // Format receipt data as plain text for printing
+  const formatReceiptForPrinting = (receiptData: any) => {
+    let receiptText = `----- Receipt -----\n`;
+    receiptText += `Order ID: #${receiptData.order_id}\n`;
+    receiptText += `Customer: ${receiptData.customer_name || 'Guest'}\n`;
+    receiptText += `Date: ${receiptData.order_date || new Date().toISOString()}\n`;
+    receiptText += `Payment Method: ${receiptData.payment_method || 'N/A'}\n`;
+    receiptText += `------------------\n`;
+    receiptText += `Items:\n`;
+    receiptData.items?.forEach((item: any) => {
+      receiptText += `${item.menu_item_name} x${item.quantity} - ₹${parseFloat(item.price || '0').toFixed(2)}\n`;
+    });
+    receiptText += `------------------\n`;
+    receiptText += `Total Amount: ₹${parseFloat(receiptData.total_amount || '0').toFixed(2)}\n`;
+    receiptText += `------------------\n`;
+    return receiptText;
+  };
+
+  // Simulate sending receipt to printer
+  const sendToPrinter = (receiptText: string) => {
+    console.log('Sending to printer:\n', receiptText);
+    // In a real implementation, integrate with a printer SDK or library here
+    // Example: await PrinterSDK.print(receiptText);
+    return new Promise(resolve => setTimeout(resolve, 1000)); // Simulate async printing
+  };
+
   // Handle save order
   const handleSaveOrder = async () => {
     if (!selectedProducts.length) {
@@ -232,7 +261,7 @@ export default function OrderDetailsModal({
         Alert.alert('Error', response.message || 'Failed to save order');
       }
     } catch (error) {
-      console.error('Error saving order:', error);
+      console.log('Error saving order:', error);
       Alert.alert('Error', 'Failed to save order. Please try again.');
     } finally {
       setIsProcessing(false);
@@ -305,20 +334,52 @@ export default function OrderDetailsModal({
             await sendOrderEmail(orderData);
           }
           onOrderComplete(orderData);
-          
-          // Show success alert and navigate to Home
+
+          // Show alert to ask about printing receipt
           Alert.alert(
-            'Order Checkout Done!', 
-            'Your order has been successfully processed and checked out.', 
+            'Order Checkout Done!',
+            'Your order has been successfully processed and checked out. Would you like to print a receipt?',
             [
-              { 
-                text: 'OK', 
+              {
+                text: 'No, Go Home',
                 onPress: () => {
                   handleClose();
                   navigation.navigate('Home');
-                }
+                },
+                style: 'cancel',
               },
-            ]
+              {
+                text: 'Yes, Print Receipt',
+                onPress: async () => {
+                  try {
+                    const orderId = response.data?.order_id || response.data?.id;
+                    console.log('Fetching receipt for order:', orderId);
+                    const receiptResponse = await getRecept(orderId);
+                    console.log('Receipt response:', JSON.stringify(receiptResponse, null, 2));
+
+                    if (receiptResponse && receiptResponse.data) {
+                      const receiptText = formatReceiptForPrinting(receiptResponse.data);
+                      await sendToPrinter(receiptText);
+                      Alert.alert('Success', 'Receipt sent to printer!', [
+                        {
+                          text: 'OK',
+                          onPress: () => {
+                            handleClose();
+                            navigation.navigate('Home');
+                          },
+                        },
+                      ]);
+                    } else {
+                      Alert.alert('Error', 'Connect to printer..');
+                    }
+                  } catch (error) {
+                    console.error('Error fetching receipt:', error);
+                    Alert.alert('Error', 'Failed to load receipt data. Please try again.');
+                  }
+                },
+              },
+            ],
+            { cancelable: false }
           );
         } else {
           Alert.alert('Error', checkoutResponse.message || 'Failed to process checkout');
@@ -327,7 +388,7 @@ export default function OrderDetailsModal({
         Alert.alert('Error', response.message || 'Failed to create order');
       }
     } catch (error) {
-      console.error('Error processing payment:', error);
+      console.log('Error processing payment:', error);
       Alert.alert('Error', 'Failed to process payment. Please try again.');
     } finally {
       setIsProcessing(false);
@@ -500,6 +561,9 @@ export default function OrderDetailsModal({
                   </View>
                 </View>
               ))}
+              <TouchableOpacity onPress={handleClose} style={styles.addButton}>
+                <Ionicons name="add" size={24} color="#ffffff" />
+              </TouchableOpacity>
             </View>
 
             {/* Service Type */}
@@ -543,7 +607,7 @@ export default function OrderDetailsModal({
               )}
               
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Special Instructions</Text>
+                <Text style={styles.sectionTitle}>Special Instructions</Text>
                 <TextInput
                   style={[styles.textInput, styles.commentInput]}
                   placeholder="Any special requests..."
@@ -662,6 +726,21 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 20,
     backgroundColor: '#f5f5f5',
+  },
+  addButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#007AFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+    alignSelf: 'center',
+    marginTop: 12,
   },
   content: {
     flex: 1,

@@ -1,17 +1,17 @@
 import { useState } from 'react';
 import {
-  Alert,
-  Keyboard,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View
+    Alert,
+    Keyboard,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    StyleSheet,
+    Switch,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    View
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { addCateGory } from '../../Api/Services/Products';
@@ -80,7 +80,7 @@ const AddCategory = ({
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to create category');
-      console.error('Category creation error:', error);
+      console.log('Category creation error:', error);
     } finally {
       setLoading(false);
     }

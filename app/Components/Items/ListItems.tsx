@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
@@ -42,17 +42,26 @@ interface ListItemsProps {
   searchQuery?: string;
 }
 
-const FILTER_OPTIONS = [
-  { label: 'All Items', value: 'all', icon: 'grid-outline' },
-  { label: 'Favorites', value: 'favorites', icon: 'heart-outline' },
-  { label: 'Discounts', value: 'discounts', icon: 'pricetag-outline' },
-  { label: 'Veg', value: 'veg', icon: 'leaf-outline' },
-];
-
 const DIET_COLORS = {
   Veg: '#10B981',
   'Non-Veg': '#F87171',
   Egg: '#FBBF24',
+};
+
+// Dynamic filter options based on unique category names
+const getFilterOptions = (products: Product[]) => {
+  const uniqueCategories = Array.from(new Set(products.map((product) => product.diet))).map((category) => ({
+    label: category,
+    value: category.toLowerCase(),
+    icon: category === 'Veg' ? 'leaf-outline' : category === 'Non-Veg' ? 'fish-outline' : 'egg-outline',
+  }));
+
+  return [
+    { label: 'All Items', value: 'all', icon: 'grid-outline' },
+    { label: 'Favorites', value: 'favorites', icon: 'heart-outline' },
+    { label: 'Discounts', value: 'discounts', icon: 'pricetag-outline' },
+    ...uniqueCategories,
+  ];
 };
 
 const ProductItem = React.memo(({ 
@@ -90,10 +99,7 @@ const ProductItem = React.memo(({
         accessible
         accessibilityLabel={`Select ${item.name}, ${item.diet}, ${item.portion}`}
       >
-        {/* Gradient Background for Selected Items */}
         {isSelected && <View style={styles.selectedOverlay} />}
-        
-        {/* Color Strip with Glow Effect */}
         <View style={[styles.colorStrip, { backgroundColor: item.color }]}>
           {isSelected && <View style={[styles.colorGlow, { backgroundColor: item.color }]} />}
         </View>
@@ -189,6 +195,11 @@ export default function ListItems({ products: initialProducts = [], searchQuery 
   const [productQuantities, setProductQuantities] = useState({});
   const [showAddMenuModal, setShowAddMenuModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+  const searchInputRef = useRef<TextInput>(null);
+
+  // Dynamic filter options based on products
+  const FILTER_OPTIONS = useMemo(() => getFilterOptions(products), [products]);
 
   useEffect(() => {
     setLocalSearchQuery(searchQuery);
@@ -205,7 +216,7 @@ export default function ListItems({ products: initialProducts = [], searchQuery 
         name: item.name || 'Unnamed Item',
         price: parseFloat(item.price) || 0,
         color: item.color || DIET_COLORS[item.diet] || '#6366F1',
-        diet: item.diet || 'Veg',
+        diet: item.category_name || 'Veg',
         portion: item.portion || 'Small',
         isFavorite: item.is_favorite || false,
         hasDiscount: item.discountPrice ? true : false,
@@ -233,20 +244,16 @@ export default function ListItems({ products: initialProducts = [], searchQuery 
   const filteredProducts = useMemo(() => {
     let filtered = products;
 
-    switch (selectedFilter) {
-      case 'favorites':
-        filtered = filtered.filter((product) => product.isFavorite);
-        break;
-      case 'discounts':
-        filtered = filtered.filter((product) => product.hasDiscount);
-        break;
-      case 'veg':
-        filtered = filtered.filter((product) => product.isVeg);
-        break;
-      default:
-        break;
+    // Filter by selected filter (including category_name)
+    if (selectedFilter === 'favorites') {
+      filtered = filtered.filter((product) => product.isFavorite);
+    } else if (selectedFilter === 'discounts') {
+      filtered = filtered.filter((product) => product.hasDiscount);
+    } else if (selectedFilter !== 'all') {
+      filtered = filtered.filter((product) => product.diet.toLowerCase() === selectedFilter.toLowerCase());
     }
 
+    // Apply search query filter
     if (localSearchQuery) {
       filtered = filtered.filter((product) =>
         product.name.toLowerCase().includes(localSearchQuery.toLowerCase())
@@ -284,6 +291,10 @@ export default function ListItems({ products: initialProducts = [], searchQuery 
       ...prev,
       [productId]: (prev[productId] || 0) + 1,
     }));
+  }, []);
+
+  const handleClearOrder = useCallback(() => {
+    setProductQuantities({});
   }, []);
 
   const getSelectedProducts = useCallback(() => {
@@ -328,6 +339,22 @@ export default function ListItems({ products: initialProducts = [], searchQuery 
     console.log('Current orders:', getSelectedProducts());
   }, [getSelectedProducts]);
 
+  const handleSearchContainerPress = useCallback(() => {
+    setIsSearchExpanded(true);
+    searchInputRef.current?.focus();
+  }, []);
+
+  const handleCancelSearch = useCallback(() => {
+    setIsSearchExpanded(false);
+    searchInputRef.current?.blur();
+  }, []);
+
+  const handleClearSearch = useCallback(() => {
+    setLocalSearchQuery('');
+    setIsSearchExpanded(false);
+    searchInputRef.current?.blur();
+  }, []);
+
   const renderProduct = useCallback(({ item }) => (
     <ProductItem
       item={item}
@@ -370,26 +397,35 @@ export default function ListItems({ products: initialProducts = [], searchQuery 
 
       <View style={styles.contentContainer}>
         <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.filterButton}
-            onPress={() => setShowDropdown(true)}
-            activeOpacity={0.8}
-            accessible
-            accessibilityLabel="Open filter options"
-          >
-            <Ionicons 
-              name={selectedFilterOption?.icon || 'grid-outline'} 
-              size={20} 
-              color="#6366F1" 
-            />
-            <Text style={styles.filterText}>{selectedFilterOption?.label || 'All Items'}</Text>
-            <Ionicons name="chevron-down" size={18} color="#6B7280" />
-          </TouchableOpacity>
+          {!isSearchExpanded && (
+            <>
+              <TouchableOpacity
+                style={styles.filterButton}
+                onPress={() => setShowDropdown(true)}
+                activeOpacity={0.8}
+                accessible
+                accessibilityLabel="Open filter options"
+              >
+                <Ionicons 
+                  name={selectedFilterOption?.icon || 'grid-outline'} 
+                  size={20} 
+                  color="#6366F1" 
+                />
+                <Text style={styles.filterText}>{selectedFilterOption?.label || 'All Items'}</Text>
+                <Ionicons name="chevron-down" size={18} color="#6B7280" />
+              </TouchableOpacity>
+            </>
+          )}
 
-          <View style={styles.searchContainer}>
+          <TouchableOpacity
+            style={[styles.searchContainer, isSearchExpanded && styles.searchContainerExpanded]}
+            onPress={handleSearchContainerPress}
+            activeOpacity={1}
+          >
             <Ionicons name="search" size={20} color="#9CA3AF" style={styles.searchIcon} />
             <TextInput
-              style={styles.searchInput}
+              ref={searchInputRef}
+              style={[styles.searchInput, isSearchExpanded && styles.searchInputExpanded]}
               placeholder="Search delicious items..."
               value={localSearchQuery}
               onChangeText={setLocalSearchQuery}
@@ -400,24 +436,52 @@ export default function ListItems({ products: initialProducts = [], searchQuery 
             {localSearchQuery.length > 0 && (
               <TouchableOpacity
                 style={styles.clearButton}
-                onPress={() => setLocalSearchQuery('')}
+                onPress={handleClearSearch}
                 accessible
                 accessibilityLabel="Clear search"
               >
                 <Ionicons name="close-circle" size={20} color="#9CA3AF" />
               </TouchableOpacity>
             )}
-          </View>
-
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={() => setShowAddMenuModal(true)}
-            activeOpacity={0.8}
-            accessible
-            accessibilityLabel="Add new menu item"
-          >
-            <Ionicons name="add" size={24} color="#FFFFFF" />
           </TouchableOpacity>
+
+          {isSearchExpanded && (
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={handleCancelSearch}
+              activeOpacity={0.8}
+              accessible
+              accessibilityLabel="Cancel search"
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          )}
+
+          {!isSearchExpanded && (
+            <>
+              {getTotalItemCount() > 0 && (
+                <TouchableOpacity
+                  style={styles.clearOrderButton}
+                  onPress={handleClearOrder}
+                  activeOpacity={0.8}
+                  accessible
+                  accessibilityLabel="Clear selected order"
+                >
+                  <Ionicons name="trash-outline" size={24} color="#FFFFFF" />
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity
+                style={styles.addButton}
+                onPress={() => setShowAddMenuModal(true)}
+                activeOpacity={0.8}
+                accessible
+                accessibilityLabel="Add new menu item"
+              >
+                <Ionicons name="add" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+            </>
+          )}
         </View>
 
         <FlatList
@@ -578,6 +642,9 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 1,
   },
+  searchContainerExpanded: {
+    flex: 1,
+  },
   searchIcon: {
     marginRight: 10,
   },
@@ -587,8 +654,34 @@ const styles = StyleSheet.create({
     color: '#1E293B',
     paddingVertical: 12,
   },
+  searchInputExpanded: {
+    flex: 1,
+  },
   clearButton: {
     padding: 4,
+  },
+  cancelButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#E2E8F0',
+  },
+  cancelButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  clearOrderButton: {
+    backgroundColor: '#EF4444',
+    padding: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   addButton: {
     backgroundColor: '#6366F1',

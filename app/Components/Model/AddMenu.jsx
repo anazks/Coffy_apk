@@ -1,20 +1,20 @@
 import { useEffect, useState } from 'react';
 import {
-  Alert,
-  Dimensions,
-  FlatList,
-  Keyboard,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View
+    Alert,
+    Dimensions,
+    FlatList,
+    Keyboard,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    View
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { addMenuItem, getCategories, getmodifiers, getTaxes } from '../../Api/Services/Products';
@@ -101,7 +101,7 @@ const AddMenu = ({
         }
       }
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.log('Error fetching data:', error);
     }
   };
 
@@ -197,7 +197,7 @@ const AddMenu = ({
         Alert.alert('Error', errorMessage);
       }
       
-      console.error('Menu item creation error:', error);
+      console.log('Menu item creation error:', error);
     } finally {
       setLoading(false);
     }

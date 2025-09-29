@@ -54,7 +54,7 @@ export const addModifier = async (data: any) => {
             console.log('Adding modifier with data:', data);
             let res = await Axios.post('/menu/modifiers/', data);
             console.log('Modifier added successfully:', res.data);
-            return res.data;
+            return res;
         } catch (error) {
             console.log('Error adding modifier:', error);
             throw error;   
@@ -225,3 +225,17 @@ export const deleteMenu = async (id: number) => {
         return error;
     }
 };
+
+export const addModifierOptions = async (data: any) => {
+
+    try {
+
+        console.log('Adding modifier options with data:', data);
+        let res = await Axios.post(`/menu/modifiers/${data.modifierId}/options/`, data);
+        console.log('Modifier options added successfully:', res);
+        return res;
+    } catch (error) {
+        console.log('Error adding modifier options:', error);
+        throw error;
+    }
+}

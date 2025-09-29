@@ -1,18 +1,18 @@
 import { useState } from 'react';
 import {
-    Alert,
-    Keyboard,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    View
+  Alert,
+  Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { addModifier } from '../../Api/Services/Products';
@@ -122,8 +122,8 @@ const AddModifiers = ({
       };
 
       const response = await addModifier(modifierData);
-
-      if (response.success) {
+      console.log('Add Modifier Response:', response);
+      if (response.status==201) {
         Alert.alert('Success', 'Modifier created successfully');
         resetForm();
         onModifierAdded?.();
@@ -133,7 +133,7 @@ const AddModifiers = ({
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to create modifier');
-      console.error('Modifier creation error:', error);
+      console.log('Modifier creation error:', error);
     } finally {
       setLoading(false);
     }

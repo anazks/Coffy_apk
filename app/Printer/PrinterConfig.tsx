@@ -60,7 +60,7 @@
 //         Alert.alert("Success", "Print job completed!");
 //       }
 //     } catch (e) {
-//       console.error("Print Error:", e);
+//       console.log("Print Error:", e);
 //       Alert.alert("Error", "Failed to print");
 //       await printerInstance.disconnect();
 //     } finally {

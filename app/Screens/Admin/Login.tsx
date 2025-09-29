@@ -10,21 +10,10 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native';
 import { LoginUser } from '../../Api/Services/Auth';
-// Import your login API function
-// import { LoginUser } from '../../Api/Services/Auth';
-  useEffect(() => {
-    try {
-      let access = localStorage.getItem('access');
-      if(access){
-        router.push('/(tabs)/Home');
-      }
-    } catch (error) {
-      console.log(error);
-    }
-  },[])
+
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -32,40 +21,53 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [hasStoredCredentials, setHasStoredCredentials] = useState(false);
   const [storedEmail, setStoredEmail] = useState('');
-  const [checkingStorage, setCheckingStorage] = useState(true);
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const [errors, setErrors] = useState({});
 
+  // Check for access token and stored credentials on mount
   useEffect(() => {
-    checkStoredCredentials();
+    const checkAuthentication = async () => {
+      try {
+        console.log('Checking for access token in AsyncStorage...');
+        const access = await AsyncStorage.getItem('access');
+        console.log('Access token found:', !!access);
+
+        if (access) {
+          console.log('Access token exists, navigating to Home');
+          // Small delay to ensure smooth navigation
+          setTimeout(() => {
+            router.replace('/(tabs)/Home');
+          }, 500);
+          return; // Exit early to avoid rendering login UI
+        }
+
+        // If no access token, check for stored credentials
+        console.log('Checking stored credentials...');
+        const savedEmail = await AsyncStorage.getItem('email');
+        const savedPassword = await AsyncStorage.getItem('password');
+        console.log('Stored credentials:', { savedEmail, hasPassword: !!savedPassword });
+
+        if (savedEmail && savedPassword) {
+          setHasStoredCredentials(true);
+          setStoredEmail(savedEmail);
+          setEmail(savedEmail);
+          setPassword(savedPassword);
+        } else {
+          setHasStoredCredentials(false);
+        }
+      } catch (error) {
+        console.error('Error checking authentication:', error);
+      } finally {
+        setCheckingAuth(false);
+      }
+    };
+
+    checkAuthentication();
   }, []);
 
-  const checkStoredCredentials = async () => {
-    try {
-      setCheckingStorage(true);
-      const savedEmail = await AsyncStorage.getItem('email');
-      const savedPassword = await AsyncStorage.getItem('password');
-      
-      console.log('Checking stored credentials:', { savedEmail, hasPassword: !!savedPassword });
-      
-      if (savedEmail && savedPassword) {
-        setHasStoredCredentials(true);
-        setStoredEmail(savedEmail);
-        setEmail(savedEmail);
-        setPassword(savedPassword);
-      } else {
-        setHasStoredCredentials(false);
-      }
-    } catch (error) {
-      console.error('Error checking stored credentials:', error);
-      setHasStoredCredentials(false);
-    } finally {
-      setCheckingStorage(false);
-    }
-  };
-
   const validateForm = () => {
-    const newErrors = {};
-    
+    const newErrors: { [key: string]: string } = {};
+
     if (!hasStoredCredentials) {
       // Full validation when no stored credentials
       if (!email.trim()) {
@@ -73,21 +75,21 @@ export default function Login() {
       } else if (!/^\S+@\S+\.\S+$/.test(email)) {
         newErrors.email = 'Please enter a valid email';
       }
-      
+
       if (!password.trim()) {
         newErrors.password = 'Password is required';
       } else if (password.length < 1) {
         newErrors.password = 'Password is required';
       }
     }
-    
+
     // PIN validation (always required)
     if (!pin.trim()) {
       newErrors.pin = 'PIN is required';
     } else if (pin.length < 1 || pin.length > 6) {
       newErrors.pin = 'PIN must be between 1-6 characters';
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -99,33 +101,31 @@ export default function Login() {
     }
 
     setLoading(true);
-    
+
     try {
       const loginData = {
         email: hasStoredCredentials ? storedEmail : email,
         password: hasStoredCredentials ? await AsyncStorage.getItem('password') : password,
-        pin: pin
+        pin: pin,
       };
-          console.log('Login attempt with data:', loginData);
+      console.log('Login attempt with data:', loginData);
 
-      let response = await LoginUser(loginData);
-        if(response.status ==200){
-            await AsyncStorage.setItem('access', response.data.access);
-            await AsyncStorage.setItem('refreshToken', response.data.refresh);
-            router.push('/(tabs)/Home')
-        }
-      
-      // Simulate successful login  
-      
+      const response = await LoginUser(loginData);
+      console.log('Login response:', response);
+
+      if (response.status === 200) {
+        console.log('Login successful, storing tokens');
+        await AsyncStorage.setItem('access', response.data.access);
+        await AsyncStorage.setItem('refreshToken', response.data.refresh);
+        router.replace('/(tabs)/Home');
+      } else {
+        Alert.alert('Login Error', response.message || 'Invalid credentials');
+      }
     } catch (error) {
       console.error('Login error:', error);
-      
       if (error.response) {
         console.log('Error response:', error.response.data);
-        Alert.alert(
-          'Login Error',
-          error.response.data?.message || `Server error: ${error.response.status}`
-        );
+        Alert.alert('Login Error', error.response.data.message || 'Invalid credentials');
       } else {
         Alert.alert('Login Error', 'An error occurred during login. Please try again.');
       }
@@ -136,8 +136,9 @@ export default function Login() {
 
   const handleClearCredentials = async () => {
     try {
-      await AsyncStorage.removeItem('user_email');
-      await AsyncStorage.removeItem('user_password');
+      console.log('Clearing stored credentials');
+      await AsyncStorage.removeItem('email');
+      await AsyncStorage.removeItem('password');
       setHasStoredCredentials(false);
       setStoredEmail('');
       setEmail('');
@@ -151,7 +152,7 @@ export default function Login() {
     }
   };
 
-  const handleInputChange = (field, value) => {
+  const handleInputChange = (field: string, value: string) => {
     switch (field) {
       case 'email':
         setEmail(value);
@@ -163,20 +164,20 @@ export default function Login() {
         setPin(value);
         break;
     }
-    
+
     // Clear error when user types
     if (errors[field]) {
       setErrors({
         ...errors,
-        [field]: null
+        [field]: null,
       });
     }
   };
 
-  if (checkingStorage) {
+  if (checkingAuth) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
-        <Text style={styles.loadingText}>Checking saved credentials...</Text>
+        <Text style={styles.loadingText}>Checking authentication...</Text>
       </View>
     );
   }
@@ -186,18 +187,12 @@ export default function Login() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <ScrollView 
-        contentContainerStyle={styles.scrollContainer}
-        keyboardShouldPersistTaps="handled"
-      >
+      <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Welcome to Coffy Byte</Text>
           <Text style={styles.subtitle}>
-            {hasStoredCredentials 
-              ? `Welcome back, ${storedEmail}` 
-              : 'Sign in to your POS account'
-            }
+            {hasStoredCredentials ? `Welcome back, ${storedEmail}` : 'Sign in to your POS account'}
           </Text>
         </View>
 
@@ -242,7 +237,7 @@ export default function Login() {
 
           <TextInput
             style={[styles.input, errors.pin && styles.inputError]}
-            placeholder={hasStoredCredentials ? "Enter your PIN" : "PIN (1-6 characters)"}
+            placeholder={hasStoredCredentials ? 'Enter your PIN' : 'PIN (1-6 characters)'}
             placeholderTextColor="#9ca3af"
             keyboardType="numeric"
             secureTextEntry
@@ -259,17 +254,8 @@ export default function Login() {
           )}
         </View>
 
-        {/* Debug Info - remove in production
-        <View style={styles.debugContainer}>
-          <Text style={styles.debugTitle}>Debug Info:</Text>
-          <Text style={styles.debugText}>Has Stored Credentials: {hasStoredCredentials ? 'Yes' : 'No'}</Text>
-          <Text style={styles.debugText}>Stored Email: {storedEmail || 'None'}</Text>
-          <Text style={styles.debugText}>Current PIN: {pin || 'Empty'}</Text>
-          <Text style={styles.debugText}>Errors: {JSON.stringify(errors, null, 2)}</Text>
-        </View> */}
-
         {/* Login Button */}
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.loginButton, loading && styles.loginButtonDisabled]}
           onPress={handleLogin}
           disabled={loading}
@@ -377,22 +363,6 @@ const styles = StyleSheet.create({
   forgotPasswordText: {
     color: '#7c3aed',
     fontSize: 14,
-  },
-  debugContainer: {
-    backgroundColor: '#f3f4f6',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
-  },
-  debugTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  debugText: {
-    fontSize: 12,
-    color: '#374151',
-    marginBottom: 4,
   },
   loginButton: {
     backgroundColor: '#7c3aed',

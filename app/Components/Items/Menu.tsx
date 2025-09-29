@@ -68,7 +68,7 @@ const Menu = () => {
       const items = await getMenuItems();
       setMenuItems(items || []);
     } catch (error) {
-      console.error('Error fetching menu items:', error);
+      console.log('Error fetching menu items:', error);
       Alert.alert('Error', 'Failed to load menu items');
     } finally {
       setLoading(false);
@@ -86,7 +86,7 @@ const Menu = () => {
       setAvailableModifiers(modifiersResponse.data || []);
       setAvailableTaxes((taxesResponse.data || []).filter(tax => tax && tax.id && tax.tax_name));
     } catch (error) {
-      console.error('Error fetching dropdown data:', error);
+      console.log('Error fetching dropdown data:', error);
       Alert.alert('Error', 'Failed to load dropdown data');
     }
   };
@@ -168,7 +168,7 @@ const Menu = () => {
         throw new Error('Invalid response from server');
       }
     } catch (error) {
-      console.error('Update error:', error);
+      console.log('Update error:', error);
       Alert.alert('Error', 'Failed to update menu item');
     }
   };
@@ -192,7 +192,7 @@ const Menu = () => {
                 throw new Error('Invalid response from server');
               }
             } catch (error) {
-              console.error('Delete error:', error);
+              console.log('Delete error:', error);
               Alert.alert('Error', 'Failed to delete menu item');
             }
           },

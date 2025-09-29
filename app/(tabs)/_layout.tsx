@@ -76,7 +76,7 @@ const tabConfig = {
   },
   Shift: {
     iconName: 'time',
-    label: 'Shift',
+    label: 'Orders',
     IconComponent: Ionicons,
   },
   Receipts: {
