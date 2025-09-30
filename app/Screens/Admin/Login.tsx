@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { LoginUser } from '../../Api/Services/Auth';
+import CustomAlert from '../../Components/Alert/CustomAlert';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -23,6 +24,7 @@ export default function Login() {
   const [storedEmail, setStoredEmail] = useState('');
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [errors, setErrors] = useState({});
+  const [showAlert,setShowAlert] = useState(false)
 
   // Check for access token and stored credentials on mount
   useEffect(() => {
@@ -122,10 +124,10 @@ export default function Login() {
         Alert.alert('Login Error', response.message || 'Invalid credentials');
       }
     } catch (error) {
-      console.error('Login error:', error);
+      // console.error('Login error:', error);
       if (error.response) {
-        console.log('Error response:', error.response.data);
-        Alert.alert('Login Error', error.response.data.message || 'Invalid credentials');
+        // Alert.alert('Login Error', error.response.data.message || 'Invalid credentials');
+        setShowAlert(true)
       } else {
         Alert.alert('Login Error', 'An error occurred during login. Please try again.');
       }
@@ -277,6 +279,14 @@ export default function Login() {
             <Text style={styles.signupLink}>Create one</Text>
           </TouchableOpacity>
         </View>
+          <CustomAlert
+            isVisible={showAlert}
+            type="error"
+            title="Login Failed"
+            message="invaild credentails"
+            color="#E53935" // red color for error
+            onConfirm={() => setShowAlert(false)}  // ✅ Use onConfirm, not onCancel
+          />
       </ScrollView>
     </KeyboardAvoidingView>
   );

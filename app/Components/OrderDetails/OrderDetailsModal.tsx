@@ -357,7 +357,7 @@ export default function OrderDetailsModal({
                     const receiptResponse = await getRecept(orderId);
                     console.log('Receipt response:', JSON.stringify(receiptResponse, null, 2));
 
-                    if (receiptResponse && receiptResponse.data) {
+                    if (receiptResponse) {
                       const receiptText = formatReceiptForPrinting(receiptResponse.data);
                       await sendToPrinter(receiptText);
                       Alert.alert('Success', 'Receipt sent to printer!', [
