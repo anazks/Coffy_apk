@@ -8,6 +8,7 @@ import { Alert, Animated, Dimensions, Platform, SafeAreaView, StatusBar, StyleSh
 import TaxSettings from '../Screens/Admin/Taxes';
 import Printer from '../Screens/Printer';
 import Profile from '../Screens/Profile';
+import BluetoothScanner from '../Screens/BluetoothScanner';
 
 const { width } = Dimensions.get('window');
 const isTablet = width >= 768;
@@ -73,7 +74,7 @@ export default function Taxes() {
       case 'Profile':
         return <Profile />;
       case 'Printer':
-        return <Printer />;
+        return <BluetoothScanner  />;
       default:
         return <TaxSettings />;
     }
