@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React, { useEffect, useRef } from 'react';
+import { PrinterProvider } from '../Contex/PrinterContex';
 import {
   Animated,
   Easing,
@@ -164,71 +165,73 @@ const AnimatedTabIcon = ({ focused, iconName, label, IconComponent }: AnimatedTa
 
 export default function TabLayout() {
   return (
-    <Tabs
-      screenOptions={({ route }) => {
-        const config = tabConfig[route.name as keyof typeof tabConfig];
-        
-        if (!config) {
+    <PrinterProvider>
+      <Tabs
+        screenOptions={({ route }) => {
+          const config = tabConfig[route.name as keyof typeof tabConfig];
+          
+          if (!config) {
+            return {
+              headerShown: false,
+              tabBarStyle: { display: 'none' },
+            };
+          }
+
           return {
             headerShown: false,
-            tabBarStyle: { display: 'none' },
+            headerShadowVisible: false,
+            tabBarHideOnKeyboard: true,
+            tabBarShowLabel: false,
+            tabBarStyle: styles.tabBar,
+            tabBarActiveTintColor: '#2563eb',
+            tabBarInactiveTintColor: '#64748b',
+            tabBarIcon: ({ focused }) => (
+              <AnimatedTabIcon
+                focused={focused}
+                iconName={config.iconName}
+                label={config.label}
+                IconComponent={config.IconComponent}
+              />
+            ),
           };
-        }
-
-        return {
-          headerShown: false,
-          headerShadowVisible: false,
-          tabBarHideOnKeyboard: true,
-          tabBarShowLabel: false,
-          tabBarStyle: styles.tabBar,
-          tabBarActiveTintColor: '#2563eb',
-          tabBarInactiveTintColor: '#64748b',
-          tabBarIcon: ({ focused }) => (
-            <AnimatedTabIcon
-              focused={focused}
-              iconName={config.iconName}
-              label={config.label}
-              IconComponent={config.IconComponent}
-            />
-          ),
-        };
-      }}
-    >
-      <Tabs.Screen 
-        name="Home" 
-        options={{ 
-          title: 'Home',
-          headerShown: false,
-        }} 
-      />
-      <Tabs.Screen 
-        name="BookNow" 
-        options={{ 
-          title: 'Book Now',
-          headerShown: false,
-        }} 
-      />
-      <Tabs.Screen 
-        name="Shift" 
-        options={{ 
-          title: 'Shift',
-          headerShown: false,
-        }} 
-      />
-      <Tabs.Screen 
-        name="Receipts" 
-        options={{ 
-          title: 'Receipts',
-          headerShown: false,
-        }} 
-      />
-      <Tabs.Screen 
-        name="Settings" 
-        options={{ 
-          title: 'Settings',
-          headerShown: false,
-        }} 
-      />
-    </Tabs>
+        }}
+      >
+        <Tabs.Screen 
+          name="Home" 
+          options={{ 
+            title: 'Home',
+            headerShown: false,
+          }} 
+        />
+        <Tabs.Screen 
+          name="BookNow" 
+          options={{ 
+            title: 'Book Now',
+            headerShown: false,
+          }} 
+        />
+        <Tabs.Screen 
+          name="Shift" 
+          options={{ 
+            title: 'Shift',
+            headerShown: false,
+          }} 
+        />
+        <Tabs.Screen 
+          name="Receipts" 
+          options={{ 
+            title: 'Receipts',
+            headerShown: false,
+          }} 
+        />
+        <Tabs.Screen 
+          name="Settings" 
+          options={{ 
+            title: 'Settings',
+            headerShown: false,
+          }} 
+        />
+      </Tabs>
+    </PrinterProvider>
   );
 }
