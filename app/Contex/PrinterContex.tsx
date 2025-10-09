@@ -6,7 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Buffer } from 'buffer';
 import { requestBluetoothPermissions } from '../Api/Services/requestBluetoothPermissions';
 
-// ==================== TYPES ====================
+// ==================== TYPES ====================  
 
 type ConnectionStatus = 'connected' | 'connecting' | 'disconnected';
 
@@ -581,13 +581,20 @@ export function PrinterProvider({ children }: PrinterProviderProps) {
   // ==================== PRINTING FUNCTIONS ====================
 
   async function writeToPrinter(data: number[]): Promise<void> {
-    if (!connectedDevice || !printerService || !writeCharacteristic) {
-      throw new Error('Not connected to printer');
-    }
+  if (!connectedDevice || !printerService || !writeCharacteristic) {
+    throw new Error('Not connected to printer');
+  }
 
-    try {
-      const buffer = Buffer.from(data);
+  try {
+    const CHUNK_SIZE = 20; // BLE typically handles 20 bytes per packet well
+    
+    // Split data into chunks
+    for (let i = 0; i < data.length; i += CHUNK_SIZE) {
+      const chunk = data.slice(i, i + CHUNK_SIZE);
+      const buffer = Buffer.from(chunk);
       const base64Data = buffer.toString('base64');
+
+      console.log(`📤 Sending chunk ${Math.floor(i / CHUNK_SIZE) + 1}/${Math.ceil(data.length / CHUNK_SIZE)}`);
 
       await connectedDevice.writeCharacteristicWithoutResponseForService(
         printerService.uuid,
@@ -595,50 +602,61 @@ export function PrinterProvider({ children }: PrinterProviderProps) {
         base64Data
       );
 
+      // Small delay between chunks to prevent overwhelming the printer
       await new Promise((resolve) => setTimeout(resolve, 50));
-    } catch (error) {
-      console.log('Write failed:', error);
-      throw error;
     }
+    
+    console.log('✅ All data written successfully');
+  } catch (error) {
+    console.log('❌ Write failed:', error);
+    throw new Error(`Failed to write to printer: ${error.message || 'Unknown error'}`);
+  }
+}
+
+// Updated printTestText function
+async function printTestText(text: string): Promise<void> {
+  if (!connectedDevice || !printerService || !writeCharacteristic) {
+    Alert.alert('Error', 'Not connected to printer');
+    return;
   }
 
-  async function printTestText(text: string): Promise<void> {
-    if (!connectedDevice || !printerService || !writeCharacteristic) {
-      Alert.alert('Error', 'Not connected to printer');
-      return;
-    }
-
-    if (!text.trim()) {
-      Alert.alert('Error', 'Please enter text to print');
-      return;
-    }
-
-    setPrinting(true);
-
-    try {
-      console.log('🖨️ Printing test text...');
-
-      const printCommands = [
-        0x1b,
-        0x40, // Initialize printer
-        ...Buffer.from(text, 'utf8'),
-        0x0a, // Line feed
-        0x0a, // Line feed
-        0x1b,
-        0x64,
-        0x03, // Feed 3 lines
-      ];
-
-      await writeToPrinter(printCommands);
-
-      Alert.alert('Success', 'Test text sent to printer!');
-    } catch (error: any) {
-      console.log('❌ Test print failed:', error);
-      Alert.alert('Print Failed', 'Could not print test text. Please check printer connection.');
-    } finally {
-      setPrinting(false);
-    }
+  if (!text.trim()) {
+    Alert.alert('Error', 'Please enter text to print');
+    return;
   }
+
+  setPrinting(true);
+
+  try {
+    console.log('🖨️ Printing test text...');
+    console.log('📝 Text length:', text.length);
+
+    // Initialize printer
+    const initCommands = [0x1b, 0x40];
+    await writeToPrinter(initCommands);
+    
+    // Convert text to bytes and send
+    const textBytes = Buffer.from(text, 'utf8');
+    await writeToPrinter(Array.from(textBytes));
+    
+    // Add line feeds and paper cut
+    const endCommands = [
+      0x0a, // Line feed
+      0x0a, // Line feed
+      0x0a, // Line feed
+      0x1b, 0x64, 0x03, // Feed 3 lines
+    ];
+    await writeToPrinter(endCommands);
+
+    console.log('✅ Print completed successfully');
+    Alert.alert('Success', 'Receipt printed successfully!');
+  } catch (error: any) {
+    console.log('❌ Print failed:', error);
+    Alert.alert('Print Failed', error.message || 'Could not print. Please check printer connection.');
+  } finally {
+    setPrinting(false);
+  }
+}
 
   async function printReceipt(receiptData: any): Promise<void> {
     if (!connectedDevice || !printerService || !writeCharacteristic) {

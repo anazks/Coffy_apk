@@ -71,7 +71,7 @@ export default function BluetoothScanner({ receiptData, onPrintComplete, onClose
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      {/* <View style={styles.header}>
         {onClose && (
           <TouchableOpacity onPress={onClose} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#334155" />
@@ -80,10 +80,10 @@ export default function BluetoothScanner({ receiptData, onPrintComplete, onClose
         )}
         <Text style={styles.headerTitle}>Bluetooth Printer</Text>
         <View style={styles.headerSpacer} />
-      </View>
+      </View> */}
 
       {/* Quick Connect */}
-      {savedPrinter && !connectedDevice && (
+      {/* {savedPrinter && !connectedDevice && (
         <TouchableOpacity 
           style={styles.quickConnectButton}
           onPress={quickConnectToSavedPrinter}
@@ -94,7 +94,7 @@ export default function BluetoothScanner({ receiptData, onPrintComplete, onClose
             {connecting ? 'Connecting...' : `Quick Connect to ${savedPrinter.name}`}
           </Text>
         </TouchableOpacity>
-      )}
+      )} */}
 
       {/* Status */}
       <View style={[styles.statusBanner, { backgroundColor: getConnectionStatusColor() }]}>
@@ -103,11 +103,6 @@ export default function BluetoothScanner({ receiptData, onPrintComplete, onClose
         </Text>
         {connectedDevice && (
           <View style={styles.connectedButtons}>
-            <TouchableOpacity onPress={handlePrintReceipt} style={styles.smallButton} disabled={printing}>
-              <Text style={styles.smallButtonText}>
-                {printing ? 'Printing...' : 'Print Receipt'}
-              </Text>
-            </TouchableOpacity>
             <TouchableOpacity onPress={disconnectDevice} style={styles.smallButton}>
               <Text style={styles.smallButtonText}>Disconnect</Text>
             </TouchableOpacity>
@@ -116,7 +111,7 @@ export default function BluetoothScanner({ receiptData, onPrintComplete, onClose
       </View>
 
       {/* Test Print Section - Only show when connected */}
-      {connectedDevice && (
+      {/* {connectedDevice && (
         <View style={styles.testPrintSection}>
           <Text style={styles.sectionTitle}>Test Print Sample Text</Text>
           <TextInput
@@ -137,27 +132,29 @@ export default function BluetoothScanner({ receiptData, onPrintComplete, onClose
             </Text>
           </TouchableOpacity>
         </View>
-      )}
+      )} */}
 
       {/* Help Button */}
-      <TouchableOpacity 
+      {/* <TouchableOpacity 
         style={styles.helpButton}
         onPress={showConnectionHelp}
       >
         <Ionicons name="help-circle-outline" size={20} color="#2563eb" />
         <Text style={styles.helpText}>Connection Tips</Text>
-      </TouchableOpacity>
+      </TouchableOpacity> */}
 
       {/* Scan Button */}
+    {!connectedDevice && (
       <TouchableOpacity 
-        style={[styles.button, scanning && styles.scanningButton]} 
+        style={[styles.button]} 
         onPress={startScan}
         disabled={scanning || connecting}
       >
         <Text style={styles.buttonText}>
           {scanning ? "Scanning..." : "Scan for Printers"}
         </Text>
-      </TouchableOpacity>
+      </TouchableOpacity> 
+    )}
 
       {/* Connecting Indicator */}
       {connecting && (

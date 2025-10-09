@@ -242,15 +242,20 @@ export default function Receipt({ receiptData, onClose }: ReceiptProps) {
       console.log('📝 Formatting receipt...');
       const formattedReceipt = formatReceiptForPrint(receiptData);
       
+      console.log('📏 Receipt length:', formattedReceipt.length);
       console.log('🖨️ Sending receipt to printer...');
       
+      // The printTestText function will show its own Alert when done
       await printTestText(formattedReceipt);
       
-      console.log('✅ Receipt sent successfully');
+      console.log('✅ Print function completed');
       
     } catch (error: any) {
       console.log('❌ Print error:', error);
-      Alert.alert('Print Error', 'Failed to print receipt: ' + (error?.message || 'Unknown error'));
+      // Only show error alert if printTestText didn't already show one
+      if (!error?.message?.includes('Not connected')) {
+        Alert.alert('Print Error', 'Failed to print receipt: ' + (error?.message || 'Unknown error'));
+      }
     }
   };
 

@@ -14,7 +14,7 @@ import {
 import { getOrders, getRecept } from '../Api/Services/Orders';
 import Loader from '../Components/Loader/Loarder'; // Corrected typo in import path
 import Receipt from '../Components/Model/Recept';
-import { usePrinter } from '../Contex/PrinterContex';
+// import { usePrinter } from '../Contex/PrinterContex';
 
 interface ReceiptItem {
   id: string;
@@ -51,30 +51,30 @@ export default function Receipts() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const { printTestText } = usePrinter();
+  // const { printTestText } = usePrinter();
 
-  const sampleReceiptText = `=== TEST RECEIPT ===
+//   const sampleReceiptText = `=== TEST RECEIPT ===
 
-Ticket: TKT-2025-10-07-001
-Date: October 07, 2025
-Time: 14:30
+// Ticket: TKT-2025-10-07-001
+// Date: October 07, 2025
+// Time: 14:30
 
-Item 1 - Burger x 2    ₹200.00
-Item 2 - Fries x 1     ₹100.00
-Item 3 - Drink x 1     ₹50.00
+// Item 1 - Burger x 2    ₹200.00
+// Item 2 - Fries x 1     ₹100.00
+// Item 3 - Drink x 1     ₹50.00
 
-Subtotal:             ₹350.00
-Tax:                  ₹35.00
-Total:                ₹385.00
+// Subtotal:             ₹350.00
+// Tax:                  ₹35.00
+// Total:                ₹385.00
 
-Payment: Cash
-Order Type: Dine In
-Employee: John Doe
+// Payment: Cash
+// Order Type: Dine In
+// Employee: John Doe
 
-Thank you for your order!
-Visit again!
+// Thank you for your order!
+// Visit again!
 
-`;
+// `;
 
   const mapOrderToReceipt = (order: any): Receipt => ({
     id: order.id.toString(),
@@ -476,12 +476,12 @@ Visit again!
             <Ionicons name="filter" size={20} color="#334155" />
           </TouchableOpacity>
 
-          <TouchableOpacity
+          {/* <TouchableOpacity
             style={styles.testPrintButton}
             onPress={handleTestPrint}
           >
             <Text style={styles.testPrintButtonText}>Test Print</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
       </View>
 
