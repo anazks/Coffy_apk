@@ -2,20 +2,21 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import React, { useState } from 'react';
 import {
-    Alert,
-    Keyboard,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    View,
+  Alert,
+  Keyboard,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
 } from 'react-native';
 import { CheckOutOrder, getRecept } from '../../Api/Services/Orders';
 import { CreateOrder } from '../../Api/Services/Products';
+import { usePrinter } from '../../Contex/PrinterContex';
 
 interface Product {
   id: string;
@@ -65,6 +66,41 @@ interface OrderData {
   tableId?: number;
 }
 
+// Interface for receipt data based on provided structure
+interface ReceiptData {
+  order_id: number;
+  token: number;
+  create_date: string;
+  user_name: string;
+  store_name: string;
+  store_address: any;
+  order_method: 'Dine In' | 'Takeaway' | 'Delivery';
+  table_number: string | null;
+  payment_method: 'Cash' | 'Card' | 'UPI' | 'Wallet' | 'Tabby' | 'Bank Transfer' | 'Digital Wallet' | 'Split Payment';
+  payment_status: 'Paid' | 'Pending' | 'Cancelled' | 'Partial' | 'Refunded';
+  payment_details: {
+    method: string;
+    status: string;
+    reference: string | null;
+  };
+  checkout_items: Array<{
+    name: string;
+    quantity: number;
+    unit_price: number;
+    item_total: number;
+    add_ons: any[];
+  }>;
+  checkout_items_count: number;
+  subtotal: number;
+  total_tax: number;
+  discount_amount: number;
+  service_charge: number;
+  final_amount: number;
+  saved_items: any[];
+  saved_items_count: number;
+  has_saved_items: boolean;
+}
+
 export default function OrderDetailsModal({
   visible,
   onClose,
@@ -74,6 +110,7 @@ export default function OrderDetailsModal({
   onClearItems = () => {},
 }: OrderDetailsModalProps) {
   const navigation = useNavigation();
+  const { printTestText, isConnected, connectedDevice, printing } = usePrinter();
   const [orderType, setOrderType] = useState<'dine-in' | 'takeout' | 'delivery'>('dine-in');
   const [ticketName, setTicketName] = useState('');
   const [comment, setComment] = useState('');
@@ -201,30 +238,90 @@ export default function OrderDetailsModal({
     return Math.abs(total - totalAmount) < 0.01;
   };
 
-  // Format receipt data as plain text for printing
-  const formatReceiptForPrinting = (receiptData: any) => {
-    let receiptText = `----- Receipt -----\n`;
-    receiptText += `Order ID: #${receiptData.order_id}\n`;
-    receiptText += `Customer: ${receiptData.customer_name || 'Guest'}\n`;
-    receiptText += `Date: ${receiptData.order_date || new Date().toISOString()}\n`;
-    receiptText += `Payment Method: ${receiptData.payment_method || 'N/A'}\n`;
-    receiptText += `------------------\n`;
-    receiptText += `Items:\n`;
-    receiptData.items?.forEach((item: any) => {
-      receiptText += `${item.menu_item_name} x${item.quantity} - ₹${parseFloat(item.price || '0').toFixed(2)}\n`;
+  // Format receipt data for printing (optimized for thermal printer)
+  const formatReceiptForPrint = (data: ReceiptData): string => {
+    const ticketNumber = `TKT-${data.create_date.split('T')[0]}-${data.token.toString().padStart(3, '0')}`;
+    
+    // Use very simple formatting
+    let receipt = '';
+    
+    receipt += '================================\n';
+    receipt += data.store_name + '\n';
+    receipt += '================================\n\n';
+    
+    receipt += 'Ticket: ' + ticketNumber + '\n';
+    receipt += 'Order: #' + data.order_id + '\n';
+    receipt += 'Date: ' + new Date(data.create_date).toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    }) + '\n';
+    receipt += 'Time: ' + new Date(data.create_date).toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+    }) + '\n';
+    receipt += 'Type: ' + data.order_method + '\n';
+    receipt += '\n================================\n';
+    receipt += 'ITEMS\n';
+    receipt += '================================\n\n';
+    
+    // Items
+    data.checkout_items.forEach((item, index) => {
+      receipt += (index + 1) + '. ' + item.name + '\n';
+      receipt += '   ' + item.quantity + ' x Rs' + item.unit_price.toFixed(2) + '\n';
+      receipt += '   Total: Rs' + item.item_total.toFixed(2) + '\n\n';
     });
-    receiptText += `------------------\n`;
-    receiptText += `Total Amount: ₹${parseFloat(receiptData.total_amount || '0').toFixed(2)}\n`;
-    receiptText += `------------------\n`;
-    return receiptText;
+    
+    receipt += '--------------------------------\n';
+    receipt += 'Subtotal: Rs' + data.subtotal.toFixed(2) + '\n';
+    receipt += 'Tax: Rs' + data.total_tax.toFixed(2) + '\n';
+    receipt += '================================\n';
+    receipt += 'TOTAL: Rs' + data.final_amount.toFixed(2) + '\n';
+    receipt += '================================\n\n';
+    
+    receipt += 'Payment: ' + data.payment_method + '\n';
+    receipt += 'Status: ' + data.payment_status + '\n\n';
+    
+    receipt += 'Thank you!\n';
+    receipt += '\n\n\n';
+    
+    return receipt;
   };
 
-  // Simulate sending receipt to printer
-  const sendToPrinter = (receiptText: string) => {
-    console.log('Sending to printer:\n', receiptText);
-    // In a real implementation, integrate with a printer SDK or library here
-    // Example: await PrinterSDK.print(receiptText);
-    return new Promise(resolve => setTimeout(resolve, 1000)); // Simulate async printing
+  const handlePrint = async (receiptData: ReceiptData) => {
+    console.log('📄 Starting print process...');
+    
+    // Check if printer is connected
+    if (!isConnected || !connectedDevice) {
+      Alert.alert('Printer Not Connected', 'Please connect to a printer first.');
+      return;
+    }
+    
+    // Check if already printing
+    if (printing) {
+      Alert.alert('Please Wait', 'Printer is busy. Please wait for current job to complete.');
+      return;
+    }
+    
+    try {
+      console.log('📝 Formatting receipt...');
+      const formattedReceipt = formatReceiptForPrint(receiptData);
+      
+      console.log('📏 Receipt length:', formattedReceipt.length);
+      console.log('🖨️ Sending receipt to printer...');
+      
+      // The printTestText function will show its own Alert when done
+      await printTestText(formattedReceipt);
+      
+      console.log('✅ Print function completed');
+      
+    } catch (error: any) {
+      console.log('❌ Print error:', error);
+      // Only show error alert if printTestText didn't already show one
+      if (!error?.message?.includes('Not connected')) {
+        Alert.alert('Print Error', 'Failed to print receipt: ' + (error?.message || 'Unknown error'));
+      }
+    }
   };
 
   // Handle save order
@@ -358,8 +455,7 @@ export default function OrderDetailsModal({
                     console.log('Receipt response:', JSON.stringify(receiptResponse, null, 2));
 
                     if (receiptResponse) {
-                      const receiptText = formatReceiptForPrinting(receiptResponse.data);
-                      await sendToPrinter(receiptText);
+                      await handlePrint(receiptResponse);
                       Alert.alert('Success', 'Receipt sent to printer!', [
                         {
                           text: 'OK',
@@ -370,7 +466,7 @@ export default function OrderDetailsModal({
                         },
                       ]);
                     } else {
-                      Alert.alert('Error', 'Connect to printer..');
+                      Alert.alert('Error', 'Failed to load receipt data. Please try again.');
                     }
                   } catch (error) {
                     console.error('Error fetching receipt:', error);
