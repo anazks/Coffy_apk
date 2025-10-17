@@ -28,13 +28,19 @@ export const getCategories = async () => {
 }
 export const addMenuItem = async (data: any) => {
         try {
-            console.log(data,"menu from friend end")
-            let res = await Axios.post('/menu/menu/', data);
-            console.log(res,"menu added.....")
-            return res;
-        } catch (error) {
-            console.log('Error adding menu item:', error);
-            throw error;   
+            console.log(data,"menu from frontend")
+            let response = await Axios.post('/menu/menu/', data);
+            console.log(response,"menu added.....")
+            return response;
+        } catch (error: any) {
+            console.log("❌ Menu item creation error:", error);
+            if (error.response) {
+            console.log("Status:", error.response.status);
+            console.log("Data:", error.response.data);
+            console.log("Headers:", error.response.headers);
+            } else {
+            console.log("Error message:", error.message);
+            }  
         }
 }
 

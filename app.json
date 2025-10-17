@@ -3,7 +3,7 @@
     "name": "CoffyByte",
     "slug": "CoffyByte",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/images/COFFEE.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
@@ -16,6 +16,7 @@
         "foregroundImage": "./assets/images/COFFEE.png",
         "backgroundColor": "#ffffff"
       },
+      "screenOrientation": "default",
       "edgeToEdgeEnabled": true,
       "package": "com.anazk08.myapp",
       "permissions": [

@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React, { useEffect, useRef } from 'react';
 import { PrinterProvider } from '../Contex/PrinterContex';
+import * as ScreenOrientation from 'expo-screen-orientation'; // ADD THIS LINE
 import {
   Animated,
   Easing,
@@ -164,6 +165,19 @@ const AnimatedTabIcon = ({ focused, iconName, label, IconComponent }: AnimatedTa
 };
 
 export default function TabLayout() {
+  // ADD THIS USEEFFECT BLOCK
+  useEffect(() => {
+    const unlockOrientation = async () => {
+      try {
+        await ScreenOrientation.unlockAsync();
+      } catch (error) {
+        console.log('Error unlocking orientation:', error);
+      }
+    };
+    
+    unlockOrientation();
+  }, []);
+
   return (
     <PrinterProvider>
       <Tabs

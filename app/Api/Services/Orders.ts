@@ -31,7 +31,14 @@ export const CheckOutOrder = async (data: any) => {
             const response = await Axios.post('/orders/checkout/', data)
             console.log(data)
             return response
-        }   catch (error) {
+        }   catch (error:any) {
+            if (error.response) {
+                        console.log("Status:", error.response.status);
+                        console.log("Data:", error.response.data);
+                        console.log("Headers:", error.response.headers);
+                        } else {
+                        console.log("Error message:", error.message);
+                        }  
             throw error 
         }   
 }

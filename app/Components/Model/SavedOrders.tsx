@@ -20,6 +20,7 @@ import {
 } from 'react-native';
 import { getOrders } from '../../Api/Services/Products';
 import Loader from '../../Components/Loader/Loarder';
+import { usePrinter } from '../../Contex/PrinterContex';
 
 // Define interfaces for type safety
 interface OrderItem {
@@ -63,9 +64,8 @@ const CheckOut = async (checkoutData: {
     const response = await CheckOutOrder(checkoutData);
     console.log('Checkout response:', response);
     return response;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Checkout error:', error);
-    throw error;
   }
 };
 
@@ -74,6 +74,7 @@ const isTablet = width >= 768;
 
 export default function SavedOrders() {
   const navigation = useNavigation();
+  const { printTestText, isConnected, connectedDevice, printing } = usePrinter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -172,7 +173,7 @@ export default function SavedOrders() {
     const paymentMethod = selectedPaymentMethod[orderId];
     const paymentStatus = selectedPaymentStatus[orderId];
     const isProcessing = processingOrders[orderId];
-    return !paymentMethod || paymentMethod.trim() === '' || isProcessing;
+    return !paymentMethod || paymentMethod.trim() === '' || !paymentStatus || paymentStatus.trim() === '' || isProcessing;
   };
 
   const setOrderProcessing = (orderId: string, processing: boolean) => {
@@ -226,9 +227,86 @@ export default function SavedOrders() {
     handleClose();
   };
 
+  // Format receipt data for printing (optimized for thermal printer)
+  const formatReceiptForPrint = (data: ReceiptData): string => {
+    const ticketNumber = `TKT-${data.order_date.split('T')[0] || new Date().toISOString().split('T')[0]}-001`;
+    
+    // Use very simple formatting
+    let receipt = '';
+    
+    receipt += '================================\n';
+    receipt += 'RESTAURANT NAME\n'; // Placeholder for store name
+    receipt += '================================\n\n';
+    
+    receipt += 'Ticket: ' + ticketNumber + '\n';
+    receipt += 'Order: #' + data.order_id + '\n';
+    receipt += 'Date: ' + new Date(data.order_date).toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    }) + '\n';
+    receipt += 'Customer: ' + data.customer_name + '\n';
+    receipt += '\n================================\n';
+    receipt += 'ITEMS\n';
+    receipt += '================================\n\n';
+    
+    // Items
+    data.items.forEach((item, index) => {
+      receipt += (index + 1) + '. ' + item.menu_item_name + '\n';
+      receipt += '   ' + item.quantity + ' x Rs' + parseFloat(item.price || item.menu_item_price || '0').toFixed(2) + '\n\n';
+    });
+    
+    receipt += '--------------------------------\n';
+    receipt += 'TOTAL: Rs' + parseFloat(data.total_amount || '0').toFixed(2) + '\n';
+    receipt += '================================\n\n';
+    
+    receipt += 'Payment: ' + data.payment_method + '\n';
+    
+    receipt += 'Thank you!\n';
+    receipt += '\n\n\n';
+    
+    return receipt;
+  };
+
+  const handlePrint = async (receiptData: ReceiptData) => {
+    console.log('📄 Starting print process...');
+    
+    // Check if printer is connected
+    if (!isConnected || !connectedDevice) {
+      Alert.alert('Printer Not Connected', 'Please connect to a printer first.');
+      return;
+    }
+    
+    // Check if already printing
+    if (printing) {
+      Alert.alert('Please Wait', 'Printer is busy. Please wait for current job to complete.');
+      return;
+    }
+    
+    try {
+      console.log('📝 Formatting receipt...');
+      const formattedReceipt = formatReceiptForPrint(receiptData);
+      
+      console.log('📏 Receipt length:', formattedReceipt.length);
+      console.log('🖨️ Sending receipt to printer...');
+      
+      // The printTestText function will show its own Alert when done
+      await printTestText(formattedReceipt);
+      
+      console.log('✅ Print function completed');
+      
+    } catch (error: any) {
+      console.log('❌ Print error:', error);
+      // Only show error alert if printTestText didn't already show one
+      if (!error?.message?.includes('Not connected')) {
+        Alert.alert('Print Error', 'Failed to print receipt: ' + (error?.message || 'Unknown error'));
+      }
+    }
+  };
+
   const handleSaveOrder = async (order: Order) => {
     if (isButtonDisabled(order.id)) {
-      Alert.alert('Missing Information', 'Please select a payment method');
+      Alert.alert('Missing Information', 'Please select payment method and status');
       return;
     }
 
@@ -270,10 +348,9 @@ export default function SavedOrders() {
   };
 
  
- 
 const handleCheckout = async (order: Order) => {
   if (isButtonDisabled(order.id)) {
-    Alert.alert('Missing Information', 'Please select a payment method');
+    Alert.alert('Missing Information', 'Please select payment method and status');
     return;
   }
 
@@ -309,7 +386,7 @@ const handleCheckout = async (order: Order) => {
   const getStatusColor = (status?: string) => {
     switch (status?.toLowerCase()) {
       case 'pending':
-        return '#f59e0b';
+        return '#6b7280'; // Changed from yellow to gray
       case 'paid':
         return '#10b981';
       case 'failed':
@@ -333,6 +410,36 @@ const handleCheckout = async (order: Order) => {
         return 'bicycle-outline';
       default:
         return 'receipt-outline';
+    }
+  };
+
+  const getPaymentIcon = (method: string) => {
+    switch (method) {
+      case 'Cash':
+        return 'cash-outline';
+      case 'Card':
+        return 'card-outline';
+      case 'UPI':
+        return 'phone-portrait-outline';
+      case 'Tabby':
+        return 'card-outline';
+      case 'Bank Transfer':
+        return 'business-outline';
+      case 'Digital Wallet':
+        return 'wallet-outline';
+      case 'Split Payment':
+        return 'swap-horizontal-outline';
+      default:
+        return 'help-outline';
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'Paid':
+        return 'checkmark-circle-outline';
+      default:
+        return 'help-outline';
     }
   };
 
@@ -366,7 +473,18 @@ const handleCheckout = async (order: Order) => {
 
                   <TouchableOpacity
                     style={[styles.modalButton, styles.modalButtonPrimary]}
-                    onPress={() => handleReceiptResponse(true)}
+                    onPress={async () => {
+                      // Check printer status before proceeding
+                      if (!isConnected || !connectedDevice) {
+                        Alert.alert('Printer Not Connected', 'Please connect to a printer first.');
+                        return;
+                      }
+                      if (printing) {
+                        Alert.alert('Please Wait', 'Printer is busy. Please wait for current job to complete.');
+                        return;
+                      }
+                      handleReceiptResponse(true);
+                    }}
                     disabled={loadingReceipt}
                   >
                     {loadingReceipt ? (
@@ -441,10 +559,13 @@ const handleCheckout = async (order: Order) => {
                 <View style={styles.receiptActions}>
                   <TouchableOpacity
                     style={[styles.modalButton, styles.modalButtonPrimary]}
-                    onPress={() => {
-                      Alert.alert('Print', 'Receipt sent to printer!', [
-                        { text: 'OK', onPress: closeReceiptAndGoHome }
-                      ]);
+                    onPress={async () => {
+                      if (receiptData) {
+                        await handlePrint(receiptData);
+                        Alert.alert('Success', `Receipt sent to printer: ${connectedDevice}!`, [
+                          { text: 'OK', onPress: closeReceiptAndGoHome }
+                        ]);
+                      }
                     }}
                   >
                     <Ionicons name="print-outline" size={20} color="#ffffff" />
@@ -475,11 +596,59 @@ const handleCheckout = async (order: Order) => {
 
     const orderItems = item.checkout_items || item.saved_items || item.items || [];
 
+    const PaymentMethodButton = ({ method, label, icon, selectedMethod, onSelect }: { method: string; label: string; icon: string; selectedMethod: string; onSelect: (value: string) => void }) => (
+      <TouchableOpacity
+        style={[
+          styles.paymentButton,
+          selectedMethod === method && styles.paymentButtonActive
+        ]}
+        onPress={() => onSelect(method)}
+        disabled={isProcessing}
+      >
+        <Ionicons 
+          name={icon as any} 
+          size={16} 
+          color={selectedMethod === method ? '#ffffff' : '#666666'} 
+        />
+        <Text style={[
+          styles.paymentButtonText,
+          selectedMethod === method && styles.paymentButtonTextActive
+        ]}>
+          {label}
+        </Text>
+      </TouchableOpacity>
+    );
+
+    const PaymentStatusButton = ({ status, selectedStatus, onSelect }: { status: string; selectedStatus: string; onSelect: (value: string) => void }) => (
+      <TouchableOpacity
+        style={[
+          styles.paymentButton,
+          selectedStatus === status && styles.paymentButtonActive
+        ]}
+        onPress={() => onSelect(status)}
+        disabled={isProcessing}
+      >
+        <Ionicons 
+          name={getStatusIcon(status) as any} 
+          size={16} 
+          color={selectedStatus === status ? '#ffffff' : '#666666'} 
+        />
+        <Text style={[
+          styles.paymentButtonText,
+          selectedStatus === status && styles.paymentButtonTextActive
+        ]}>
+          {status}
+        </Text>
+      </TouchableOpacity>
+    );
+
     return (
       <View style={styles.orderCard}>
         <TouchableOpacity onPress={() => toggleExpand(item.id)} style={styles.orderHeader}>
           <View style={styles.orderLeft}>
-            <Ionicons name={getOrderMethodIcon(item.order_method)} size={24} color="#2563eb" />
+            <View style={styles.orderMethodIconContainer}>
+              <Ionicons name={getOrderMethodIcon(item.order_method)} size={24} color="#ffffff" />
+            </View>
             <View style={styles.orderInfo}>
               <Text style={styles.orderTitle}>Order #{item.id}</Text>
               <Text style={styles.orderSubtitle}>
@@ -511,13 +680,13 @@ const handleCheckout = async (order: Order) => {
               <Text style={styles.sectionTitle}>Items ({orderItems.length})</Text>
               {orderItems.map((orderItem, idx) => (
                 <View key={orderItem.id || idx} style={styles.itemRow}>
-                  <Text style={styles.itemName}>{orderItem.menu_item_name || 'Unknown Item'}</Text>
-                  <View style={styles.itemDetails}>
+                  <View style={styles.itemLeft}>
+                    <Text style={styles.itemName}>{orderItem.menu_item_name || 'Unknown Item'}</Text>
                     <Text style={styles.itemQuantity}>x{orderItem.quantity || 1}</Text>
-                    <Text style={styles.itemPrice}>
-                      ₹{parseFloat(orderItem.price || orderItem.menu_item_price || '0').toFixed(2)}
-                    </Text>
                   </View>
+                  <Text style={styles.itemPrice}>
+                    ₹{parseFloat(orderItem.price || orderItem.menu_item_price || '0').toFixed(2)}
+                  </Text>
                 </View>
               ))}
             </View>
@@ -525,55 +694,49 @@ const handleCheckout = async (order: Order) => {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Payment Details</Text>
 
-              <View style={styles.inputRow}>
+              <View style={styles.paymentSection}>
                 <Text style={styles.inputLabel}>
                   Payment Method
                   <Text style={styles.requiredAsterisk}> *</Text>
                 </Text>
-                <View style={[
-                  styles.pickerContainer,
-                  !selectedPaymentMethod[item.id] && styles.pickerError
-                ]}>
-                  <Picker
-                    selectedValue={selectedPaymentMethod[item.id] || ''}
-                    onValueChange={(value) =>
-                      setSelectedPaymentMethod({
-                        ...selectedPaymentMethod,
-                        [item.id]: value,
-                      })
-                    }
-                    style={styles.picker}
-                    enabled={!isProcessing}
-                  >
-                    <Picker.Item label="Select Payment Method" value="" />
-                    {paymentMethods.map((method) => (
-                      <Picker.Item key={method} label={method} value={method} />
-                    ))}
-                  </Picker>
+                <View style={styles.paymentGrid}>
+                  {paymentMethods.map((method) => (
+                    <PaymentMethodButton
+                      key={method}
+                      method={method}
+                      label={method}
+                      icon={getPaymentIcon(method)}
+                      selectedMethod={selectedPaymentMethod[item.id] || ''}
+                      onSelect={(value) =>
+                        setSelectedPaymentMethod({
+                          ...selectedPaymentMethod,
+                          [item.id]: value,
+                        })
+                      }
+                    />
+                  ))}
                 </View>
               </View>
 
-              <View style={styles.inputRow}>
+              <View style={styles.paymentSection}>
                 <Text style={styles.inputLabel}>
                   Payment Status
                   <Text style={styles.requiredAsterisk}> *</Text>
                 </Text>
-                <View style={styles.pickerContainer}>
-                  <Picker
-                    selectedValue={selectedPaymentStatus[item.id] || 'Paid'}
-                    onValueChange={(value) =>
-                      setSelectedPaymentStatus({
-                        ...selectedPaymentStatus,
-                        [item.id]: value,
-                      })
-                    }
-                    style={styles.picker}
-                    enabled={!isProcessing}
-                  >
-                    {paymentStatuses.map((status) => (
-                      <Picker.Item key={status} label={status} value={status} />
-                    ))}
-                  </Picker>
+                <View style={styles.paymentGrid}>
+                  {paymentStatuses.map((status) => (
+                    <PaymentStatusButton
+                      key={status}
+                      status={status}
+                      selectedStatus={selectedPaymentStatus[item.id] || ''}
+                      onSelect={(value) =>
+                        setSelectedPaymentStatus({
+                          ...selectedPaymentStatus,
+                          [item.id]: value,
+                        })
+                      }
+                    />
+                  ))}
                 </View>
               </View>
             </View>
@@ -623,7 +786,7 @@ const handleCheckout = async (order: Order) => {
 
             {buttonsDisabled && !isProcessing && (
               <Text style={styles.helperText}>
-                Please select a payment method to proceed
+                Please select payment method and status to proceed
               </Text>
             )}
           </View>
@@ -715,21 +878,21 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   listContainer: {
-    paddingHorizontal: 0,
+    paddingHorizontal: 12,
     paddingVertical: 16,
     paddingBottom: 40,
   },
   orderCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 0,
-    marginBottom: 8,
-    borderWidth: 0,
+    borderRadius: 12,
+    marginBottom: 16,
+    borderWidth: 1,
     borderColor: '#e5e7eb',
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   orderHeader: {
     flexDirection: 'row',
@@ -742,13 +905,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
   },
+  orderMethodIconContainer: {
+    backgroundColor: '#2563eb',
+    borderRadius: 10,
+    padding: 8,
+    marginRight: 16,
+  },
   orderInfo: {
-    marginLeft: 16,
     flex: 1,
   },
   orderTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#1e293b',
     marginBottom: 4,
   },
@@ -758,18 +926,18 @@ const styles = StyleSheet.create({
   },
   orderRight: {
     alignItems: 'flex-end',
-    gap: 4,
+    gap: 8,
   },
   orderPrice: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
     color: '#059669',
   },
   statusBadge: {
     paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingVertical: 6,
     borderRadius: 16,
-    minWidth: 70,
+    minWidth: 80,
     alignItems: 'center',
   },
   statusText: {
@@ -779,12 +947,13 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   expandIcon: {
-    marginTop: 8,
+    marginLeft: 8,
   },
   orderDetails: {
     borderTopWidth: 1,
     borderTopColor: '#f1f5f9',
     padding: 20,
+    paddingTop: 0,
   },
   section: {
     marginBottom: 24,
@@ -803,61 +972,74 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#f1f5f9',
   },
-  itemName: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
+  itemLeft: {
     flex: 1,
-    marginRight: 16,
   },
-  itemDetails: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
+  itemName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 2,
   },
   itemQuantity: {
     fontSize: 14,
     color: '#64748b',
   },
   itemPrice: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
     color: '#059669',
+    minWidth: 80,
+    textAlign: 'right',
   },
-  inputRow: {
+  paymentSection: {
     marginBottom: 20,
   },
   inputLabel: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
     color: '#374151',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   requiredAsterisk: {
     color: '#ef4444',
-    fontWeight: '600',
+    fontWeight: '700',
   },
-  pickerContainer: {
-    backgroundColor: '#f8fafc',
+  paymentGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  paymentButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    borderRadius: 8,
-    height: 48,
-    justifyContent: 'center',
-    paddingHorizontal: 12,
+    backgroundColor: '#f8fafc',
+    gap: 6,
+    minWidth: '48%',
+    flex: 1,
   },
-  pickerError: {
-    borderColor: '#ef4444',
-    backgroundColor: '#fef2f2',
+  paymentButtonActive: {
+    borderColor: '#2563eb',
+    backgroundColor: '#2563eb',
   },
-  picker: {
-    height: 48,
-    color: '#1e293b',
-    fontSize: 16,
+  paymentButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748b',
+    textAlign: 'center',
+  },
+  paymentButtonTextActive: {
+    color: '#ffffff',
   },
   actionButtons: {
     flexDirection: 'row',
-    gap: 16,
+    gap: 12,
     marginTop: 8,
   },
   button: {
