@@ -44,12 +44,37 @@ interface Order {
 }
 
 interface ReceiptData {
-  order_id: string;
-  customer_name: string;
-  order_date: string;
-  items: OrderItem[];
-  total_amount: string;
-  payment_method: string;
+  order_id: number;
+  token: number;
+  create_date: string;
+  user_name: string;
+  store_name: string;
+  store_address: any;
+  order_method: 'Dine In' | 'Takeaway' | 'Delivery';
+  table_number: string | null;
+  payment_method: 'Cash' | 'Card' | 'UPI' | 'Wallet' | 'Tabby' | 'Bank Transfer' | 'Digital Wallet' | 'Split Payment';
+  payment_status: 'Paid' | 'Pending' | 'Cancelled' | 'Partial' | 'Refunded';
+  payment_details: {
+    method: string;
+    status: string;
+    reference: string | null;
+  };
+  checkout_items: Array<{
+    name: string;
+    quantity: number;
+    unit_price: number;
+    item_total: number;
+    add_ons: any[];
+  }>;
+  checkout_items_count: number;
+  subtotal: number;
+  total_tax: number;
+  discount_amount: number;
+  service_charge: number;
+  final_amount: number;
+  saved_items: any[];
+  saved_items_count: number;
+  has_saved_items: boolean;
 }
 
 // Placeholder CheckOut function
@@ -193,15 +218,17 @@ export default function SavedOrders() {
     try {
       setLoadingReceipt(true);
       const response = await getRecept(orderId);
-      console.log('Receipt data:', JSON.stringify(response, null, 2));
+      console.log('Receipt data response:', JSON.stringify(response, null, 2));
       if (response) {
-        setReceiptData(response.data);
+        setReceiptData(response);
       } else {
-        Alert.alert('Error', 'Failed to load receipt data');
+        console.warn('Invalid response from getRecept:', response);
+        Alert.alert('Error', 'Invalid response from server. Please check the order ID or try again.');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching receipt:', error);
-      Alert.alert('Error', 'Failed to load receipt data');
+      const errorMessage = error.message || 'Unknown error occurred';
+      Alert.alert('Error', `Failed to load receipt data: ${errorMessage}`);
     } finally {
       setLoadingReceipt(false);
     }
@@ -227,40 +254,63 @@ export default function SavedOrders() {
     handleClose();
   };
 
-  // Format receipt data for printing (optimized for thermal printer)
+  // Helper function to format date
+  const formatDate = (dateString: string) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  };
+
+  // Helper function to format time
+  const formatTime = (dateString: string) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  // Format receipt data for printing (optimized for thermal printer) - FIXED VERSION
   const formatReceiptForPrint = (data: ReceiptData): string => {
-    const ticketNumber = `TKT-${data.order_date.split('T')[0] || new Date().toISOString().split('T')[0]}-001`;
+    const ticketNumber = `TKT-${data.create_date.split('T')[0]}-${data.token.toString().padStart(3, '0')}`;
     
     // Use very simple formatting
     let receipt = '';
     
     receipt += '================================\n';
-    receipt += 'RESTAURANT NAME\n'; // Placeholder for store name
+    receipt += data.store_name + '\n';
     receipt += '================================\n\n';
     
     receipt += 'Ticket: ' + ticketNumber + '\n';
     receipt += 'Order: #' + data.order_id + '\n';
-    receipt += 'Date: ' + new Date(data.order_date).toLocaleDateString('en-IN', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    }) + '\n';
-    receipt += 'Customer: ' + data.customer_name + '\n';
+    receipt += 'Date: ' + formatDate(data.create_date) + '\n';
+    receipt += 'Time: ' + formatTime(data.create_date) + '\n';
+    receipt += 'Type: ' + data.order_method + '\n';
     receipt += '\n================================\n';
     receipt += 'ITEMS\n';
     receipt += '================================\n\n';
     
-    // Items
-    data.items.forEach((item, index) => {
-      receipt += (index + 1) + '. ' + item.menu_item_name + '\n';
-      receipt += '   ' + item.quantity + ' x Rs' + parseFloat(item.price || item.menu_item_price || '0').toFixed(2) + '\n\n';
+    // Items - FIXED: Use checkout_items array with correct property names
+    data.checkout_items.forEach((item, index) => {
+      receipt += (index + 1) + '. ' + item.name + '\n';
+      receipt += '   ' + item.quantity + ' x Rs' + item.unit_price.toFixed(2) + '\n';
+      receipt += '   Total: Rs' + item.item_total.toFixed(2) + '\n\n';
     });
     
     receipt += '--------------------------------\n';
-    receipt += 'TOTAL: Rs' + parseFloat(data.total_amount || '0').toFixed(2) + '\n';
+    receipt += 'Subtotal: Rs' + data.subtotal.toFixed(2) + '\n';
+    receipt += 'Tax: Rs' + data.total_tax.toFixed(2) + '\n';
+    receipt += '================================\n';
+    receipt += 'TOTAL: Rs' + data.final_amount.toFixed(2) + '\n';
     receipt += '================================\n\n';
     
     receipt += 'Payment: ' + data.payment_method + '\n';
+    receipt += 'Status: ' + data.payment_status + '\n\n';
     
     receipt += 'Thank you!\n';
     receipt += '\n\n\n';
@@ -268,19 +318,19 @@ export default function SavedOrders() {
     return receipt;
   };
 
-  const handlePrint = async (receiptData: ReceiptData) => {
+  const handlePrint = async (receiptData: ReceiptData): Promise<boolean> => {
     console.log('📄 Starting print process...');
     
     // Check if printer is connected
     if (!isConnected || !connectedDevice) {
       Alert.alert('Printer Not Connected', 'Please connect to a printer first.');
-      return;
+      return false;
     }
     
     // Check if already printing
     if (printing) {
       Alert.alert('Please Wait', 'Printer is busy. Please wait for current job to complete.');
-      return;
+      return false;
     }
     
     try {
@@ -294,6 +344,7 @@ export default function SavedOrders() {
       await printTestText(formattedReceipt);
       
       console.log('✅ Print function completed');
+      return true;
       
     } catch (error: any) {
       console.log('❌ Print error:', error);
@@ -301,6 +352,7 @@ export default function SavedOrders() {
       if (!error?.message?.includes('Not connected')) {
         Alert.alert('Print Error', 'Failed to print receipt: ' + (error?.message || 'Unknown error'));
       }
+      return false;
     }
   };
 
@@ -347,46 +399,46 @@ export default function SavedOrders() {
     }
   };
 
- 
-const handleCheckout = async (order: Order) => {
-  if (isButtonDisabled(order.id)) {
-    Alert.alert('Missing Information', 'Please select payment method and status');
-    return;
-  }
-
-  try {
-    setOrderProcessing(order.id, true);
-    const checkoutData = {
-      order: parseInt(order.id),
-      payment_method: selectedPaymentMethod[order.id],
-      payment_status: selectedPaymentStatus[order.id],
-      total_price: parseFloat(order.total_price || '0'),
-    };
-
-    console.log('Sending checkout data:', JSON.stringify(checkoutData, null, 2));
-    const response = await CheckOut(checkoutData);
-    console.log('Checkout response:', JSON.stringify(response, null, 2));
-
-    if (response && (response.status === 200 || response.status === 201)) {
-      console.log('Checkout successful, triggering receipt prompt for order:', order.id);
-      // Remove the order from the list immediately
-      setOrders(orders.filter((o) => o.id !== order.id));
-      // Show receipt prompt modal directly - no alert
-      showReceiptPrompt(order.id);
-    } else {
-      Alert.alert('Error', response?.message || 'Failed to process checkout');
+  const handleCheckout = async (order: Order) => {
+    if (isButtonDisabled(order.id)) {
+      Alert.alert('Missing Information', 'Please select payment method and status');
+      return;
     }
-  } catch (error) {
-    console.error('Checkout error:', error);
-    Alert.alert('Error', 'Failed to process checkout. Please try again.');
-  } finally {
-    setOrderProcessing(order.id, false);
-  }
-};
+
+    try {
+      setOrderProcessing(order.id, true);
+      const checkoutData = {
+        order: parseInt(order.id),
+        payment_method: selectedPaymentMethod[order.id],
+        payment_status: selectedPaymentStatus[order.id],
+        total_price: parseFloat(order.total_price || '0'),
+      };
+
+      console.log('Sending checkout data:', JSON.stringify(checkoutData, null, 2));
+      const response = await CheckOut(checkoutData);
+      console.log('Checkout response:', JSON.stringify(response, null, 2));
+
+      if (response && (response.status === 200 || response.status === 201)) {
+        console.log('Checkout successful, triggering receipt prompt for order:', order.id);
+        // Remove the order from the list immediately
+        setOrders(orders.filter((o) => o.id !== order.id));
+        // Show receipt prompt modal directly - no alert
+        showReceiptPrompt(order.id);
+      } else {
+        Alert.alert('Error', response?.message || 'Failed to process checkout');
+      }
+    } catch (error) {
+      console.error('Checkout error:', error);
+      Alert.alert('Error', 'Failed to process checkout. Please try again.');
+    } finally {
+      setOrderProcessing(order.id, false);
+    }
+  };
+
   const getStatusColor = (status?: string) => {
     switch (status?.toLowerCase()) {
       case 'pending':
-        return '#6b7280'; // Changed from yellow to gray
+        return '#6b7280';
       case 'paid':
         return '#10b981';
       case 'failed':
@@ -449,7 +501,7 @@ const handleCheckout = async (order: Order) => {
       <Modal
         visible={showReceiptModal}
         transparent={true}
-        animationType="fade" // Changed to fade for better compatibility
+        animationType="fade"
         onRequestClose={() => setShowReceiptModal(false)}
       >
         <View style={styles.modalOverlay}>
@@ -483,7 +535,37 @@ const handleCheckout = async (order: Order) => {
                         Alert.alert('Please Wait', 'Printer is busy. Please wait for current job to complete.');
                         return;
                       }
-                      handleReceiptResponse(true);
+                      setLoadingReceipt(true);
+                      try {
+                        if (currentOrderId) {
+                          console.log('Fetching receipt for orderId:', currentOrderId);
+                          const response = await getRecept(currentOrderId);
+                          console.log('Receipt response:', JSON.stringify(response, null, 2));
+                          if (response) {
+                            const printSuccess = await handlePrint(response);
+                            if (printSuccess) {
+                              // Wait a bit for the print to complete
+                              setTimeout(() => {
+                                setShowReceiptModal(false);
+                                setCurrentOrderId(null);
+                                handleClose();
+                              }, 500);
+                            } else {
+                              // Show the receipt modal if print fails, so user can retry or view
+                              setReceiptData(response);
+                            }
+                          } else {
+                            console.warn('Invalid receipt response:', response);
+                            Alert.alert('Error', 'Invalid response from server. Please check the order details or try again.');
+                          }
+                        }
+                      } catch (error: any) {
+                        console.error('Error fetching receipt:', error);
+                        const errorMessage = error.message || (error.response?.data?.message || 'Unknown error');
+                        Alert.alert('Error', `Failed to load receipt data: ${errorMessage}`);
+                      } finally {
+                        setLoadingReceipt(false);
+                      }
                     }}
                     disabled={loadingReceipt}
                   >
@@ -518,12 +600,17 @@ const handleCheckout = async (order: Order) => {
 
                   <View style={styles.receiptSection}>
                     <Text style={styles.receiptLabel}>Customer:</Text>
-                    <Text style={styles.receiptValue}>{receiptData.customer_name}</Text>
+                    <Text style={styles.receiptValue}>{receiptData.user_name || 'Guest'}</Text>
                   </View>
 
                   <View style={styles.receiptSection}>
                     <Text style={styles.receiptLabel}>Date:</Text>
-                    <Text style={styles.receiptValue}>{receiptData.order_date}</Text>
+                    <Text style={styles.receiptValue}>{formatDate(receiptData.create_date)}</Text>
+                  </View>
+
+                  <View style={styles.receiptSection}>
+                    <Text style={styles.receiptLabel}>Time:</Text>
+                    <Text style={styles.receiptValue}>{formatTime(receiptData.create_date)}</Text>
                   </View>
 
                   <View style={styles.receiptSection}>
@@ -534,24 +621,34 @@ const handleCheckout = async (order: Order) => {
                   <View style={styles.receiptDivider} />
 
                   <Text style={styles.receiptSectionTitle}>Items:</Text>
-                  {receiptData.items?.map((item, index) => (
+                  {receiptData.checkout_items?.map((item, index) => (
                     <View key={index} style={styles.receiptItem}>
                       <View style={styles.receiptItemLeft}>
-                        <Text style={styles.receiptItemName}>{item.menu_item_name}</Text>
+                        <Text style={styles.receiptItemName}>{item.name}</Text>
                         <Text style={styles.receiptItemQuantity}>x{item.quantity}</Text>
                       </View>
                       <Text style={styles.receiptItemPrice}>
-                        ₹{parseFloat(item.price || item.menu_item_price || '0').toFixed(2)}
+                        ₹{item.item_total.toFixed(2)}
                       </Text>
                     </View>
                   ))}
 
                   <View style={styles.receiptDivider} />
 
+                  <View style={styles.receiptSection}>
+                    <Text style={styles.receiptLabel}>Subtotal:</Text>
+                    <Text style={styles.receiptValue}>₹{receiptData.subtotal.toFixed(2)}</Text>
+                  </View>
+
+                  <View style={styles.receiptSection}>
+                    <Text style={styles.receiptLabel}>Tax:</Text>
+                    <Text style={styles.receiptValue}>₹{receiptData.total_tax.toFixed(2)}</Text>
+                  </View>
+
                   <View style={styles.receiptTotal}>
                     <Text style={styles.receiptTotalLabel}>Total Amount:</Text>
                     <Text style={styles.receiptTotalValue}>
-                      ₹{parseFloat(receiptData.total_amount || '0').toFixed(2)}
+                      ₹{receiptData.final_amount.toFixed(2)}
                     </Text>
                   </View>
                 </ScrollView>
@@ -561,10 +658,13 @@ const handleCheckout = async (order: Order) => {
                     style={[styles.modalButton, styles.modalButtonPrimary]}
                     onPress={async () => {
                       if (receiptData) {
-                        await handlePrint(receiptData);
-                        Alert.alert('Success', `Receipt sent to printer: ${connectedDevice}!`, [
-                          { text: 'OK', onPress: closeReceiptAndGoHome }
-                        ]);
+                        const printSuccess = await handlePrint(receiptData);
+                        if (printSuccess) {
+                          // Wait a bit for the print to complete
+                          setTimeout(() => {
+                            closeReceiptAndGoHome();
+                          }, 500);
+                        }
                       }
                     }}
                   >
@@ -953,7 +1053,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#f1f5f9',
     padding: 20,
-    paddingTop: 0,
+    paddingTop: 20,
   },
   section: {
     marginBottom: 24,
@@ -1103,6 +1203,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 40,
+    paddingTop: 100,
     gap: 16,
   },
   emptyTitle: {
@@ -1254,7 +1355,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: '#374151',
-  },
+  },  
   receiptItemQuantity: {
     fontSize: 12,
     color: '#64748b',

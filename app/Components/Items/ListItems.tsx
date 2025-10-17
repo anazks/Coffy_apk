@@ -503,6 +503,7 @@ const styles = StyleSheet.create({
       backgroundColor: '#F8FAFC',
     },
     navContainer: {
+        paddingTop:72,
         position: 'absolute', // It's crucial this stays absolute
         top: 0,
         left: 0,

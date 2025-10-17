@@ -231,8 +231,8 @@ export function PrinterProvider({ children }: PrinterProviderProps) {
         const deviceCount = Object.keys(devices).length;
         if (deviceCount === 0) {
           Alert.alert(
-            'No Devices Found',
-            'No Bluetooth printers found. Please ensure:\n\n• Printer is turned ON\n• Printer is in pairing mode\n• Printer is within range',
+              "Scan Successful",
+              "Available Bluetooth devices found successfully!",
             [{ text: 'OK' }]
           );
         }
